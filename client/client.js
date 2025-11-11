@@ -1,10 +1,11 @@
 import * as alt from 'alt-client';
 import * as native from "natives";
 
-//уведомления через WebView
+import { InteractionType } from './Consts.js';
+
 
 //вызов гташных уведмолени с помощью нативок 
-function drawNotification(message, autoHide = false) {
+function drawNotification(message, autoHide = true) {
     native.beginTextCommandThefeedPost('STRING');
     native.addTextComponentSubstringPlayerName(message);
     const notificationId = native.endTextCommandThefeedPostTicker(false, false);
@@ -18,6 +19,7 @@ function drawNotification(message, autoHide = false) {
 //для вызова уведомлений со стороны сервера
 alt.onServer('drawNotification', drawNotification);
 
+//уведомления через WebView
 class NotificationManager {
     static instance = null;    //для хранения единственного экземпляра класса
     //глобальный метод для получение экземпляра класса (информации о состоянии WebView)
@@ -236,7 +238,16 @@ class NotificationManager {
 class Interaction {
     constructor() {
     this.keyPressHandler = null;
+    this.keyUpHandler = null;
     this.inProgress = false;
+    this.colshapes = []; // массив для колшейпов
+    this.progressController = null;     //флаг для блокировки параллельного выполнения
+
+    this.isProgressRunning = false;
+
+    this.keyPressCooldown = new Map(); // Можно хранить cooldown для разных типов взаимодействий
+    this.keyPressDebounce = 1000; // задержка между нажатиями
+    this.lastKeyPressTime = 0;
 
     this.initializeNotificationManager();
     this.init();
@@ -255,17 +266,18 @@ class Interaction {
     }
 
     init(){
+        
         alt.onServer('client:showNotification', () => {
             //для 1 нажаия
             /*
             const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
             this.singleTap(notifId);
             */
-            
+            /*
             //прогрэсбар
             NotificationManager.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
             this.progressBar();
-            
+            */
             /*
             // множественные нажатия (Упражнения)
             const requiredTaps = 10;
@@ -273,43 +285,194 @@ class Interaction {
             this.multipleTaps(requiredTaps);
             */
         });
+
+        alt.onServer('client:sceneDemo', () => {
+            const position1 = new alt.Vector3(-1275.08, -1431.94, 3.47);    // МАШИНА
+            const position2 = new alt.Vector3(-1273.76, -1427.74, 3.34);    // УПРАЖЕНИНИЯ
+            const position3 = new alt.Vector3(-1269.45, -1428.14, 3.34);    // АВТОМАТ
+            const scale = new alt.Vector3(1.5, 1.5, 1.5)
+            const color1 = new alt.RGBA(241, 196, 15);
+            const color2 = new alt.RGBA(46, 204, 113);
+            const color3 = new alt.RGBA(52, 152, 219);
+            const marker1 = new alt.Marker(1, position1, color1);
+            marker1.scale = scale;
+            const marker2 = new alt.Marker(1, position2, color2);
+            marker2.scale = scale
+            const marker3 = new alt.Marker(1, position3, color3);
+            marker3.scale = scale
+
+            const colshape1 = new alt.ColshapeSphere(position1.x, position1.y, position1.z+1, 1);
+            const colshape2 = new alt.ColshapeSphere(position2.x, position2.y, position2.z+1, 1);
+            const colshape3 = new alt.ColshapeSphere(position3.x, position3.y, position3.z+1, 1);
+            
+            colshape1.interactionType = InteractionType.VEHICLE;
+            colshape2.interactionType = InteractionType.EXERCISE;
+            colshape3.interactionType = InteractionType.VENDING;
+
+            // МАШИНА       POS -1275.08, -1431.94, 4.47      RGBA 241, 196, 15
+            // УПРАЖЕНИНИЯ  POS -1273.76, -1427.74, 4.34      RGBA 46, 204, 113
+            // АВТОМАТ      POS -1269.65, -1428.26, 4.34      RGBA 52, 152, 219
+            this.colshapes.push(colshape1, colshape2, colshape3);
+        });
+
+        
+        // Обработка входа/выхода из колшейпов
+        alt.on('entityEnterColshape', this.startInteraction.bind(this));
+        alt.on('entityLeaveColshape', this.stopInteraction.bind(this));
     }
 
-    progressBar(){      
+    startInteraction(colshape, entity){
+        if (!(entity instanceof alt.Player)) return;
+
+        //проверка на случай если будут добавлены еще колшейпы
+        if (colshape.interactionType) {
+        const player = entity;
+         this.currentColshape = colshape; // Сохраняем текущий колшейп
+
+        switch(colshape.interactionType) {
+            case InteractionType.VEHICLE:            
+                alt.log(`InteractionType.VEHICLE`);
+                drawNotification('Взлом замка');
+                NotificationManager.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
+                this.progressBar();
+                break;
+                
+            case InteractionType.EXERCISE:
+                alt.log(`InteractionType.VEHICLE`);
+                drawNotification('Упражнения');
+                const requiredTaps = 10;
+                NotificationManager.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
+                this.multipleTaps(requiredTaps);
+                break;
+                
+            case InteractionType.VENDING:
+                alt.log(`InteractionType.VEHICLE`);
+                drawNotification('Автомат');
+                const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
+                this.singleTap(notifId);
+                //player.currentInteraction = InteractionType.MACHINE;
+                break;
+        }
+        
+        
+        }
+    }
+
+    stopInteraction(colshape, entity){
+        if (!(entity instanceof alt.Player)) return;
+        
+        if (this.progressController && this.inProgress) {
+            this.progressController.shouldStop = true;
+            alt.log('Процесс runProgress() прерван из-за выхода из колшейпа');
+        }
+
+        this.cleanup();
+
+        // Если игрок покидает текущий активный колшейп
+        if (this.currentColshape === colshape) {
+            this.currentColshape = null;
+            alt.log(`Игрок покинул зону взаимодействия`);
+        }
+    }
+
+    canProcessKeyPress() {  //дебаунс от спаама кнопоками во время интерации
+        const currentTime = Date.now();
+        const timeSinceLastPress = currentTime - this.lastKeyPressTime;
+        
+        if (timeSinceLastPress < this.keyPressDebounce) {
+            alt.log(`Дебаунс: нажатие проигнорировано (${timeSinceLastPress}ms < ${this.keyPressDebounce}ms)`);
+            return false;
+        }
+        
+        this.lastKeyPressTime = currentTime;
+        return true;
+    }
+
+   async progressBar(){      
         if (this.keyPressHandler) {
             alt.off('keydown', this.keyPressHandler);
             alt.log('Удален обработчик progressBar')
         }
-        let percentcounter = 1;
+        this.inProgress = false;
         // Создает новый обработчик для клавиши E
-        this.keyPressHandler = (key) => {
-            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
+        this.keyPressHandler = async (key) => {
+            //дебаунс от спама
+            if (!this.canProcessKeyPress()) {
+                return;
+            }
+            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView)
             if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
                 this.inProgress = true;
-                let intervalId = setInterval(() => {
-                        if (percentcounter < 10) {
-                            NotificationManager.getInstance().updateProgressBar('lockpick', `0.${percentcounter}`, `Прогресс: ${percentcounter/10}%`);  //0.5 progress насколько заполнена полоска
-                            alt.log(`${percentcounter}`);
-                            percentcounter++; 
-                        } else {
-                            clearInterval(intervalId);
-                            NotificationManager.getInstance().updateProgressBar('lockpick', `${percentcounter/10}`, `Прогресс: ${percentcounter*10}%`);
-                            new Promise(resolve => alt.setTimeout(resolve, 500))
-                            .then(() => {
-                                this.cleanup();
-                                NotificationManager.getInstance().hideProgressBar('lockpick');
-                                alt.log('cleanup + hideProgressBar в progressBar');
-                                drawNotification('Задача выполнена!');
-                            });
-                        }
-                    }, 1000);
+                this.isProgressRunning = true; // Устанавливаем флаг
+            
+            //необходимость прерывания (если keyup)
+            this.progressController = { shouldStop: false };
+            
+            try {
+                await this.runProgress();
+            } 
+            catch (error) {
+                if (error.message === 'Прерывание') {   //проверка на прерывание из runProgress
+                    NotificationManager.getInstance().updateProgressBar('lockpick', 0, `Прогресс: 0%`);
+                    drawNotification('Процесс прерван!'); //true значит что уведомление пропадет через 3 секунды
+                }
+            }
+            finally {
+                    // сбрасываем флаг в любом случае
+                    this.isProgressRunning = false;
+                }
             }   
         };
 
-        // регистрирует обработчик
+    this.keyUpHandler = (key) => {
+        if (key === 69 && this.inProgress && this.progressController) {
+            this.progressController.shouldStop = true;
+        }
+    };
+    
+        // регистрирует обработчики
         alt.on('keydown', this.keyPressHandler);
-        alt.log('Создан обработчик нажатия Е')
+        alt.on('keyup', this.keyUpHandler);
+        alt.log('Созданы обработчики progressBar');
     }
+
+    
+    async runProgress() {
+        
+        if (this.isProgressRunning) {
+            alt.log('Предупреждение: runProgress уже выполняется');
+            return;
+        }
+
+        for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
+            // Проверяем не прерван ли процесс
+            if (this.progressController.shouldStop) {
+                this.inProgress = false;
+                this.isProgressRunning = false; // Сбрасываем флаг
+                throw new Error('Прерывание');    //для проверки в catch (error)
+            }
+        
+            NotificationManager.getInstance().updateProgressBar('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
+            alt.log(`${percentcounter}`);
+        
+            // Ждем 1 секунду
+            await new Promise(resolve => alt.setTimeout(resolve, 1000));
+        }
+    
+        // Завершение
+        this.inProgress = false;
+        this.isProgressRunning = false; // Сбрасываем флаг
+        NotificationManager.getInstance().updateProgressBar('lockpick', 1, `Прогресс: 100%`);
+    
+        await new Promise(resolve => alt.setTimeout(resolve, 500));
+        this.cleanup();
+        /*
+        NotificationManager.getInstance().hideProgressBar('lockpick');
+        alt.log('cleanup + hideProgressBar в progressBar');
+        */
+        drawNotification('Задача выполнена!');
+    }
+
 
     singleTap(notifId){
          if (this.keyPressHandler) {
@@ -319,12 +482,16 @@ class Interaction {
 
         // Создает новый обработчик для клавиши E
         this.keyPressHandler = (key) => {
+            
+            //дебаунс от спама
+            if (!this.canProcessKeyPress()) {
+                return;
+            }
             //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
             if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
 
                 this.cleanup();
-                NotificationManager.getInstance().hidePersistent(notifId);
-                alt.log('cleanup + hidePersistent в singleTap');
+
                 drawNotification('Задача выполнена!');
             }   
         };
@@ -335,7 +502,7 @@ class Interaction {
     }
 
     multipleTaps(requiredTaps){
-  
+        
         if (this.keyPressHandler) {
             alt.off('keydown', this.keyPressHandler);
             alt.log('Удален обработчик multipleTaps')
@@ -347,9 +514,13 @@ class Interaction {
             //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
             if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
 
+                //дебаунс от спама
+                if (!this.canProcessKeyPress()) {
+                 return;
+                }
                 // удаляет обработчик после нажатия
                 //this.cleanup();
-                NotificationManager.getInstance().updateTapCounter('exercise', requiredTaps-pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
+                NotificationManager.getInstance().updateTapCounter('exercise', pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
                 //NotificationManager.getInstance().hidePersistent();   //скрыть WebView
                 //   return;
                 
@@ -357,8 +528,10 @@ class Interaction {
 
                 if (pressDownCounter===requiredTaps){
                     this.cleanup();
+                    /*
                     NotificationManager.getInstance().hideTapCounter('exercise');
                     alt.log('cleanup + hideTapCounter');
+                    */
                     drawNotification('Задача выполнена!');
                 }
                 pressDownCounter++;
@@ -370,13 +543,105 @@ class Interaction {
         alt.log('Создан обработчик нажатия Е')
     }
 
-     cleanup() {
-            if (this.keyPressHandler) {
-                alt.off('keydown', this.keyPressHandler);
-                alt.log('Удален обработчик cleanup');
-                this.keyPressHandler = null;
+    cleanup() {
+    // снимаем обработчики клавиш
+    if (this.keyPressHandler) {
+        alt.off('keydown', this.keyPressHandler);
+        this.keyPressHandler = null;
+    }
+    if (this.keyUpHandler) {
+        alt.off('keyup', this.keyUpHandler);
+        this.keyUpHandler = null;
+    }
+    
+    this.isProgressRunning = false;
+    this.inProgress = false;
+
+    // закрываем активное уведомление, если оно есть
+    const notificationManager = NotificationManager.getInstance();
+
+    if (notificationManager.isInitialized && notificationManager.activeNotifications.size > 0) {
+        for (const [id, notification] of notificationManager.activeNotifications.entries()) {
+            switch (notification.type) {
+                case 'persistent':
+                    notificationManager.hidePersistent(id);
+                    alt.log(`cleanup(): скрыт persistent (${id})`);
+                    break;
+
+                case 'progress':
+                    notificationManager.hideProgressBar(id);
+                    alt.log(`cleanup(): скрыт progress-bar (${id})`);
+                    break;
+
+                case 'tapCounter':
+                    notificationManager.hideTapCounter(id);
+                    alt.log(`cleanup(): скрыт tapCounter (${id})`);
+                    break;
+
+                default:
+                    alt.log(`cleanup(): неизвестный тип уведомления — ${notification.type}`);
+                    break;
             }
         }
+    }
+
+    alt.log('cleanup(): завершён — все обработчики и уведомления очищены.');
+}
+
 }
 
 new Interaction();
+
+/*
+// 1. Базовый абстрактный класс
+class BaseInteraction {
+    constructor(type, id, title) {}
+    startInteraction(){ 
+    
+    }
+
+    stopInteraction() {
+
+    }
+
+    updateInteraction() { 
+        
+    }
+
+    getInteractionText() { 
+
+    }
+}
+
+// 2. Конкретные реализации
+class SingleTapInteraction extends BaseInteraction {
+    // специализированная логика для одиночного нажатия
+}
+
+class ProgressInteraction extends BaseInteraction {
+    // специализированная логика для прогресс-бара  
+}
+
+class MultiTapInteraction extends BaseInteraction {
+    // специализированная логика для множественных нажатий
+}
+
+// 3. Менеджер взаимодействий
+class InteractionManager {
+    constructor() {
+        this.interactions = new Map();
+        this.activeInteraction = null;
+    }
+    
+    registerInteraction(id, interaction) {
+        this.interactions.set(id, interaction);
+    }
+    
+    // делегирование методов активной интеракции
+    startInteraction(id) {
+        this.activeInteraction = this.interactions.get(id);
+        this.activeInteraction.startInteraction();
+    }
+}
+*/
+
