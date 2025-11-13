@@ -241,13 +241,16 @@ class Interaction {
     this.keyUpHandler = null;
     this.inProgress = false;
     this.colshapes = []; // массив для колшейпов
-    this.progressController = null;     //флаг для блокировки параллельного выполнения
 
-    this.isProgressRunning = false;
+    //управление асинхронными операциями
+    this.currentProgressPromise = null;
+    this.progressController = null;
 
-    this.keyPressCooldown = new Map(); // Можно хранить cooldown для разных типов взаимодействий
-    this.keyPressDebounce = 1000; // задержка между нажатиями
-    this.lastKeyPressTime = 0;
+    //this.keyPressCooldown = new Map(); // Можно хранить cooldown для разных типов взаимодействий
+    this.keyEDebounceMs = 500; // задержка между нажатиями
+    this.lastKeyEPressTime = 0;
+
+    this.isKeyEHeld = false;    //отслеживание состояния клавиши E
 
     this.initializeNotificationManager();
     this.init();
@@ -267,6 +270,7 @@ class Interaction {
 
     init(){
         
+        //для тестирования разных типов взаимодействий
         alt.onServer('client:showNotification', () => {
             //для 1 нажаия
             /*
@@ -316,7 +320,7 @@ class Interaction {
         });
 
         
-        // Обработка входа/выхода из колшейпов
+        // обработка входа/выхода из колшейпов
         alt.on('entityEnterColshape', this.startInteraction.bind(this));
         alt.on('entityLeaveColshape', this.stopInteraction.bind(this));
     }
@@ -350,7 +354,6 @@ class Interaction {
                 drawNotification('Автомат');
                 const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
                 this.singleTap(notifId);
-                //player.currentInteraction = InteractionType.MACHINE;
                 break;
         }
         
@@ -359,120 +362,234 @@ class Interaction {
     }
 
     stopInteraction(colshape, entity){
+        //проверяем, что entity является игроком, а не другим типом сущности (транспорт, NPC и т.д.)
         if (!(entity instanceof alt.Player)) return;
         
-        if (this.progressController && this.inProgress) {
-            this.progressController.shouldStop = true;
-            alt.log('Процесс runProgress() прерван из-за выхода из колшейпа');
+        //отменяет прогрессбар при выходе из колшейпа
+        if (this.currentProgressPromise) {
+            alt.log('Отмена прогресса из-за выхода из колшейпа');
+            // вызываем метод отмены прогресса, который установит флаг shouldStop
+            this.cancelProgress();
         }
 
+        // вызываем общий метод очистки для удаления обработчиков и сброса состояния
         this.cleanup();
 
-        // Если игрок покидает текущий активный колшейп
+        // если игрок покидает текущий активный колшейп
+        // сравниваем колшейп, который покидает игрок, с текущим активным колшейпом
         if (this.currentColshape === colshape) {
+            // сбрасываем текущий активный колшейп, так как игрок вышел из него
             this.currentColshape = null;
             alt.log(`Игрок покинул зону взаимодействия`);
         }
     }
 
-    canProcessKeyPress() {  //дебаунс от спаама кнопоками во время интерации
-        const currentTime = Date.now();
-        const timeSinceLastPress = currentTime - this.lastKeyPressTime;
-        
-        if (timeSinceLastPress < this.keyPressDebounce) {
-            alt.log(`Дебаунс: нажатие проигнорировано (${timeSinceLastPress}ms < ${this.keyPressDebounce}ms)`);
-            return false;
+    // метод для обработки дебаунса (защиты от спама) нажатий клавиш
+    canProcessKeyPress(key) {
+        // Проверяем дебаунс только для клавиши E (код 69 соответствует клавише E)
+        if (key === 69) {
+            // Получаем текущее время в миллисекундах
+            const currentTime = Date.now();
+            // Вычисляем сколько времени прошло с последнего нажатия клавиши E
+            const timeSinceLastPress = currentTime - this.lastKeyEPressTime;
+            
+            // Если прошло меньше времени, чем установленный дебаунс, игнорируем нажатие
+            if (timeSinceLastPress < this.keyEDebounceMs) {
+                alt.log(`Дебаунс E: нажатие проигнорировано (${timeSinceLastPress}ms < ${this.keyEDebounceMs}ms)`);
+                return false; // Запрещаем обработку нажатия
+            }
+            
+            // Обновляем время последнего нажатия клавиши E на текущее время
+            this.lastKeyEPressTime = currentTime;
         }
         
-        this.lastKeyPressTime = currentTime;
+        // Для других клавиш дебаунс не применяется - всегда разрешаем обработку
         return true;
     }
 
+    //метод для отмены прогресса
+    //прерывает выполнение runProgress
+    cancelProgress() {
+        // Проверяем, что progressController существует
+        if (this.progressController) {
+            // Устанавливаем флаг, который будет проверяться в runProgress для прерывания
+            this.progressController.shouldStop = true;
+            alt.log('Прогресс отменен через cancelProgress');
+        }
+    }
+
+    // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
    async progressBar(){      
+        // если уже существует обработчик keydown, удаляем его чтобы избежать дублирования (таких ситуаций не бывает в коде)
         if (this.keyPressHandler) {
             alt.off('keydown', this.keyPressHandler);
             alt.log('Удален обработчик progressBar')
         }
+        // если уже существует обработчик keyup, удаляем его чтобы избежать дублирования (таких ситуаций не бывает в коде)
+        if (this.keyUpHandler) {
+            alt.off('keyup', this.keyUpHandler);
+            alt.log('Удален обработчик keyup progressBar')
+        }
+        // сбрасывает флаг выполнения процесса
         this.inProgress = false;
-        // Создает новый обработчик для клавиши E
+        // сбрасывает флаг зажатой клавиши E (важно при повторной активации)
+        this.isKeyEHeld = false;
+        
+        // создает новый обработчик для клавиши E (нажатие)
         this.keyPressHandler = async (key) => {
-            //дебаунс от спама
-            if (!this.canProcessKeyPress()) {
-                return;
+            //реагирует только на клавишу E
+            if (key !== 69) return;
+            
+            //дебаунс от спама - проверяем можно ли обработать это нажатие
+            if (!this.canProcessKeyPress(key)) {
+                return; // если дебаунс активен, отменяет последующие действия
             }
-            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView)
-            if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
+            
+            //устанавливаем флаг что клавиша E нажата
+            //этот флаг будет использоваться в runProgress для определения отпущена ли клавиша
+            this.isKeyEHeld = true;
+            
+            //проверка на уже запущенный прогресс
+            //если уже выполняется другой процесс прогресса, отменяем его (таких ситуаций не бывает в коде)
+            if (this.currentProgressPromise) {
+                alt.log('Прогресс уже выполняется, отменяем предыдущий');
+                // Устанавливаем флаг прерывания для текущего прогресса
+                this.cancelProgress();
+                // Ждем завершения предыдущего промиса (асинхронная отмена)
+                try {
+                    // Ожидаем завершения предыдущего прогресса, игнорируя ошибки
+                    await this.currentProgressPromise.catch(() => {});
+                    alt.log('Предыдущий прогресс завершен');
+                } catch (error) {
+                    alt.log(`Ошибка при ожидании предыдущего прогресса: ${error.message}`);
+                }
+            }
+            
+            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки
+            //проверка, что WebView открыт и готов к отображению прогресса
+            if (NotificationManager.getInstance().isWebViewOpen) {
+                //устанавливает флаг что процесс выполняется
                 this.inProgress = true;
-                this.isProgressRunning = true; // Устанавливаем флаг
-            
-            //необходимость прерывания (если keyup)
-            this.progressController = { shouldStop: false };
-            
-            try {
-                await this.runProgress();
-            } 
-            catch (error) {
-                if (error.message === 'Прерывание') {   //проверка на прерывание из runProgress
-                    NotificationManager.getInstance().updateProgressBar('lockpick', 0, `Прогресс: 0%`);
-                    drawNotification('Процесс прерван!'); //true значит что уведомление пропадет через 3 секунды
-                }
-            }
-            finally {
-                    // сбрасываем флаг в любом случае
-                    this.isProgressRunning = false;
-                }
+                //создаем новый контроллер прогресса с флагом остановки
+                this.progressController = { shouldStop: false };
+                
+                alt.log('Запуск нового прогресса...');
+                
+                //создает и сохраняет Promise для отслеживания выполнения runProgress
+                this.currentProgressPromise = this.runProgress()
+                    //обработка успешного завершения прогресса
+                    .then(() => {
+                        alt.log('Прогресс завершен успешно');
+                    })
+                    //единственный способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
+                    .catch((error) => {
+                        //преднамеренное прерывание
+                        if (error.message === 'Прерывание') {
+                            alt.log('Прогресс прерван');
+                            // сбрасывает прогрессбар в начальное состояние
+                            NotificationManager.getInstance().updateProgressBar('lockpick', 0, `Прогресс: 0%`);
+                            drawNotification('Процесс прерван!');
+                        }
+                    })
+                    //выполняется в любом случае - при успехе или ошибке
+                    .finally(() => {
+                        // сбрасываем ссылку на Promise чтобы разрешить новый запуск
+                        this.currentProgressPromise = null;
+                        alt.log('Промис прогресса очищен в finally');
+                    });
             }   
         };
 
-    this.keyUpHandler = (key) => {
-        if (key === 69 && this.inProgress && this.progressController) {
-            this.progressController.shouldStop = true;
-        }
-    };
+        // Обработчик отпускания клавиши E
+        this.keyUpHandler = (key) => {
+            // игнорирует отпускание других клавиш
+            if (key !== 69) return;
+            
+            // сбрасывает флаг что клавиша E зажата
+            this.isKeyEHeld = false;
+            
+            // Если процесс выполняется
+            if (this.inProgress && this.progressController) {
+                // устанавливает флаг остановки для прерывания runProgress
+                this.progressController.shouldStop = true;
+                alt.log('Клавиша E отпущена, установлен shouldStop');
+            }
+        };
     
-        // регистрирует обработчики
+        // Создаются обработчики событий
         alt.on('keydown', this.keyPressHandler);
         alt.on('keyup', this.keyUpHandler);
         alt.log('Созданы обработчики progressBar');
     }
 
     
-    async runProgress() {
-        
-        if (this.isProgressRunning) {
-            alt.log('Предупреждение: runProgress уже выполняется');
-            return;
-        }
-
-        for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
-            // Проверяем не прерван ли процесс
-            if (this.progressController.shouldStop) {
-                this.inProgress = false;
-                this.isProgressRunning = false; // Сбрасываем флаг
-                throw new Error('Прерывание');    //для проверки в catch (error)
-            }
-        
-            NotificationManager.getInstance().updateProgressBar('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
-            alt.log(`${percentcounter}`);
-        
-            // Ждем 1 секунду
-            await new Promise(resolve => alt.setTimeout(resolve, 1000));
-        }
+    // основной метод выполнения прогресса (взлома)
+async runProgress() {
+    alt.log('runProgress начал выполнение');
     
-        // Завершение
-        this.inProgress = false;
-        this.isProgressRunning = false; // Сбрасываем флаг
-        NotificationManager.getInstance().updateProgressBar('lockpick', 1, `Прогресс: 100%`);
+    // цикл из 10 шагов прогресса (от 10% до 100%)
+    for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
+        // обнволение прогрессбара визуально
+        NotificationManager.getInstance().updateProgressBar('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
+        alt.log(`Прогресс: ${percentcounter}/10`);
     
-        await new Promise(resolve => alt.setTimeout(resolve, 500));
-        this.cleanup();
-        /*
-        NotificationManager.getInstance().hideProgressBar('lockpick');
-        alt.log('cleanup + hideProgressBar в progressBar');
-        */
-        drawNotification('Задача выполнена!');
+        // ожидание 1 секунды с возможностью прерывания и гарантированной очисткой обработчиков timeout и interval
+        await new Promise((resolve, reject) => {
+            // для проверки от множественного вызова resolve/reject
+            let isResolved = false;
+            
+            // функции для безопасного завершения Promise с очисткой timeout и interval
+            const safeResolve = () => {
+                if (!isResolved) {
+                    isResolved = true;
+                    alt.clearTimeout(timeout);
+                    alt.clearInterval(interval);
+                    alt.log(`Произошел safeResolve`);
+                    resolve();
+                }
+            };
+            
+            const safeReject = (error) => {
+                if (!isResolved) {
+                    isResolved = true;
+                    alt.clearTimeout(timeout);
+                    alt.clearInterval(interval);
+                    alt.log(`Произошел safeReject`);
+                    reject(error);
+                }
+            };
+            
+            // ВАРИАНТ 1: УСПЕШНОЕ ЗАВЕРШЕНИЕ
+            // Таймер который вызовет safeResolve() через 1 секунду
+            const timeout = alt.setTimeout(() => {
+                safeResolve();
+                alt.log(`Шаг ${percentcounter} завершен успешно`);
+            }, 1000);
+            
+            // ВАРИАНТ 2: ПРЕРЫВАНИЕ
+            // Интервал который проверяет условия прерывания каждые 200ms
+            const interval = alt.setInterval(() => {
+                // Игрок отпустил клавишу -> Была запрошена остановка
+                if (this.progressController.shouldStop) {
+                    safeReject(new Error('Прерывание'));
+                    alt.log(`Шаг ${percentcounter} прерван`);
+                }
+            }, 200); // проверяет каждые 200 миллисекунд
+        });
     }
+    
+    // финальное отображение после того как прогресс бар дошел до конца
+    this.inProgress = false;
+    NotificationManager.getInstance().updateProgressBar('lockpick', 1, `Прогресс: 100%`);
+    alt.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
 
+    // задержка что бы игрок успел увидеть 100%
+    await new Promise(resolve => alt.setTimeout(resolve, 500));
+    
+    // очистка, закрытие Webview и показ финального уведомления
+    this.cleanup();
+    drawNotification('Задача выполнена!');
+}
 
     singleTap(notifId){
          if (this.keyPressHandler) {
@@ -481,7 +598,7 @@ class Interaction {
         }
 
         // Создает новый обработчик для клавиши E
-        this.keyPressHandler = (key) => {
+        this.keyPressHandler = async (key) => {
             
             //дебаунс от спама
             if (!this.canProcessKeyPress()) {
@@ -491,6 +608,8 @@ class Interaction {
             if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
 
                 this.cleanup();
+
+                await this.playButtonPressAnimation();
 
                 drawNotification('Задача выполнена!');
             }   
@@ -544,48 +663,146 @@ class Interaction {
     }
 
     cleanup() {
-    // снимаем обработчики клавиш
-    if (this.keyPressHandler) {
-        alt.off('keydown', this.keyPressHandler);
-        this.keyPressHandler = null;
-    }
-    if (this.keyUpHandler) {
-        alt.off('keyup', this.keyUpHandler);
-        this.keyUpHandler = null;
-    }
-    
-    this.isProgressRunning = false;
-    this.inProgress = false;
+        alt.log('Начало cleanup...');
+        
+        //отменяем текущий прогресс при cleanup
+        if (this.currentProgressPromise) {
+            alt.log('Отмена прогресса в cleanup');
+            this.cancelProgress();
+            this.currentProgressPromise = null;
+        }
+        
+        // снимаем обработчики клавиш
+        if (this.keyPressHandler) {
+            alt.off('keydown', this.keyPressHandler);
+            this.keyPressHandler = null;
+            alt.log('Обработчик keydown удален');
+        }
+        if (this.keyUpHandler) {
+            alt.off('keyup', this.keyUpHandler);
+            this.keyUpHandler = null;
+            alt.log('Обработчик keyup удален');
+        }
+        
+        this.inProgress = false;
+        // ДОБАВЛЕНО: сбрасываем состояние клавиши
+        this.isKeyEHeld = false;
 
-    // закрываем активное уведомление, если оно есть
-    const notificationManager = NotificationManager.getInstance();
+        // закрываем активное уведомление, если оно есть
+        const notificationManager = NotificationManager.getInstance();
 
-    if (notificationManager.isInitialized && notificationManager.activeNotifications.size > 0) {
-        for (const [id, notification] of notificationManager.activeNotifications.entries()) {
-            switch (notification.type) {
-                case 'persistent':
-                    notificationManager.hidePersistent(id);
-                    alt.log(`cleanup(): скрыт persistent (${id})`);
-                    break;
+        if (notificationManager.isInitialized && notificationManager.activeNotifications.size > 0) {
+            for (const [id, notification] of notificationManager.activeNotifications.entries()) {
+                switch (notification.type) {
+                    case 'persistent':
+                        notificationManager.hidePersistent(id);
+                        alt.log(`cleanup(): скрыт persistent (${id})`);
+                        break;
 
-                case 'progress':
-                    notificationManager.hideProgressBar(id);
-                    alt.log(`cleanup(): скрыт progress-bar (${id})`);
-                    break;
+                    case 'progress':
+                        notificationManager.hideProgressBar(id);
+                        alt.log(`cleanup(): скрыт progress-bar (${id})`);
+                        break;
 
-                case 'tapCounter':
-                    notificationManager.hideTapCounter(id);
-                    alt.log(`cleanup(): скрыт tapCounter (${id})`);
-                    break;
+                    case 'tapCounter':
+                        notificationManager.hideTapCounter(id);
+                        alt.log(`cleanup(): скрыт tapCounter (${id})`);
+                        break;
 
-                default:
-                    alt.log(`cleanup(): неизвестный тип уведомления — ${notification.type}`);
-                    break;
+                    default:
+                        alt.log(`cleanup(): неизвестный тип уведомления — ${notification.type}`);
+                        break;
+                }
             }
         }
+
+        alt.log('cleanup(): завершён — все обработчики и уведомления очищены.');
     }
 
-    alt.log('cleanup(): завершён — все обработчики и уведомления очищены.');
+// ВАРИАНТ 4: Анимация взаимодействия с автоматом
+async playButtonPressAnimation() {
+    alt.log('Запуск анимации нажатия на кнопку...');
+    
+    const player = alt.Player.local;
+    
+    try {
+        // 1. БЛОКИРУЕМ УПРАВЛЕНИЕ ИГРОКОМ
+        native.freezeEntityPosition(player, true);
+        native.setPedCanSwitchWeapon(player, false);
+        
+        // 2. ПРОИГРЫВАЕМ АНИМАЦИЮ НАЖАТИЯ НА КНОПКУ
+        // Загружаем библиотеку анимаций
+        await this.loadAnimDict('mp_common');
+        
+        // Проигрываем анимацию нажатия на кнопку
+        native.taskPlayAnim(
+            player, 
+            'mp_common', 
+            'givetake1_a', 
+            8.0, // скорость
+            -8.0, 
+            -1, 
+            48, // флаги: 16 = останавливается в конце, 32 = управление движением
+            0, 
+            false, 
+            false, 
+            false
+        );
+        
+        // ЖДЕМ ЗАВЕРШЕНИЯ АНИМАЦИИ (примерно 1-2 секунды)
+        await new Promise(resolve => alt.setTimeout(resolve, 2000));
+        
+        // 3. ОСТАНАВЛИВАЕМ АНИМАЦИЮ
+        native.stopAnimTask(player, 'mp_common', 'givetake1_a', 1.0);
+        
+    } catch (error) {
+        alt.log(`Ошибка при проигрывании анимации: ${error.message}`);
+    } finally {
+        // 4. ВОССТАНАВЛИВАЕМ УПРАВЛЕНИЕ ИГРОКОМ
+        native.freezeEntityPosition(player, false);
+        native.setPedCanSwitchWeapon(player, true);
+        
+        // 5. ОЧИЩАЕМ ПАМЯТЬ ОТ АНИМАЦИЙ
+        this.unloadAnimDict('mp_common');
+        
+        alt.log('Анимация нажатия на кнопку завершена');
+    }
+}
+
+// ДОБАВЛЕНО: метод для загрузки словаря анимаций
+async loadAnimDict(dict) {
+    return new Promise((resolve) => {
+        // Проверяем уже загружен ли словарь
+        if (native.hasAnimDictLoaded(dict)) {
+            resolve(true);
+            return;
+        }
+        
+        // Загружаем словарь анимаций
+        native.requestAnimDict(dict);
+        
+        // Ждем загрузки
+        const interval = alt.setInterval(() => {
+            if (native.hasAnimDictLoaded(dict)) {
+                alt.clearInterval(interval);
+                resolve(true);
+                alt.log(`Словарь анимаций '${dict}' загружен`);
+            }
+        }, 100);
+        
+        // Таймаут на случай если анимация не загрузится
+        alt.setTimeout(() => {
+            alt.clearInterval(interval);
+            resolve(false);
+            alt.log(`Таймаут загрузки словаря анимаций '${dict}'`);
+        }, 5000);
+    });
+}
+
+// ДОБАВЛЕНО: метод для выгрузки словаря анимаций
+unloadAnimDict(dict) {
+    native.removeAnimDict(dict);
+    alt.log(`Словарь анимаций '${dict}' выгружен`);
 }
 
 }
