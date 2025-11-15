@@ -263,9 +263,9 @@
             hidePersistentNotification(id);
         };
         
-        // Обработка сообщений от Alt:V
+        // Обработка сообщений клиента
         if ('alt' in window) {
-            // Постоянные уведомления
+            // постоянные уведомления (1 нажатие)
             alt.on('showPersistentNotification', (id, title, text) => {
                 showPersistentNotification(id, title, text);
             });
@@ -274,7 +274,7 @@
                 hidePersistentNotification(id);
             });
             
-            // Прогресс-бары
+            // прогресс-бары
             alt.on('showProgressBar', (id, title, initialProgress, text) => {
                 showProgressBar(id, title, initialProgress, text);
             });
@@ -287,7 +287,7 @@
                 hideProgressBar(id);
             });
             
-            // Счетчики нажатий
+            // счетчики нажатий
             alt.on('showTapCounter', (id, title, currentTaps, requiredTaps, text) => {
                 showTapCounter(id, title, currentTaps, requiredTaps, text);
             });

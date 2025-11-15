@@ -3,7 +3,9 @@ import * as native from "natives";
 
 import { InteractionType } from './Consts.js';
 
-
+function wait(ms){
+    return new Promise(resolve => alt.setTimeout(resolve, ms));
+}
 //вызов гташных уведмолени с помощью нативок 
 function drawNotification(message, autoHide = true) {
     native.beginTextCommandThefeedPost('STRING');
@@ -11,7 +13,7 @@ function drawNotification(message, autoHide = true) {
     const notificationId = native.endTextCommandThefeedPostTicker(false, false);
     // Таймер для скрытия уведомления через 3 секунды если кроме текста сообщения также передали true
     if (autoHide) {
-        setTimeout(() => {
+        alt.setTimeout(() => {
             native.thefeedRemoveItem(notificationId);
         }, 3000);
     }
@@ -28,8 +30,8 @@ class NotificationManager {
             alt.log('instance создан в первый раз:');
             this.instance = new NotificationManager();
         }
-        alt.log('Передан instance:');
-        alt.log(`this.instance: ${JSON.stringify(this.instance, null, '\t')}`);
+        //alt.log('Передан instance:');
+        //alt.log(`this.instance: ${JSON.stringify(this.instance, null, '\t')}`);
         // возвращает существующий или только что созданный экземпляр
         return this.instance;
     }
@@ -64,13 +66,31 @@ class NotificationManager {
     async init() {
         this.webView = new alt.WebView('http://resource/client/html/index.html');
 
-            const loadPromise = new Promise((resolve) => {
-                this.webView.once('load', () => resolve(true));
-            });
-            
-            const timeoutPromise = new Promise((resolve) => {
-                alt.setTimeout(() => resolve(false), 2000);
-            });
+        let resolveLoad, resolveTimeout;
+        let isResolved = false;
+
+        const loadPromise = new Promise((resolve) => {
+            resolveLoad = () => {
+                if (!isResolved) {
+                    isResolved = true;
+                    resolve(true);
+                }
+            };
+        });
+
+    const timeoutPromise = new Promise((resolve) => {
+        resolveTimeout = () => {
+            if (!isResolved) {
+                isResolved = true;
+                resolve(false);
+            }
+        };
+    });
+
+    this.webView.once('load', resolveLoad);
+    
+    alt.setTimeout(resolveTimeout, 2000);
+  
             //если WebView не загрузится за 2 секунды будет isLoaded = false
             const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
             
@@ -107,7 +127,7 @@ class NotificationManager {
         this.updateWebViewState();
     }
 
-    // ========== ПРОГРЕСС-БАРЫ (WebView) ==========
+    // ========== ПРОГРЕСС-БАР ==========
     
     showProgressBar(id, title, initialProgress = 0, text = '') {
         if (!this.isInitialized) {
@@ -146,7 +166,7 @@ class NotificationManager {
         }
     }
 
-    // ========== СЧЕТЧИКИ НАЖАТИЙ (WebView) ==========
+    // ========== СЧЕТЧИКИ НАЖАТИЙ ==========
     
     showTapCounter(id, title, currentTaps = 0, requiredTaps = 0, text = '') {
         if (!this.isInitialized) {
@@ -221,18 +241,6 @@ class NotificationManager {
     hasNotification(id) {
         return this.activeNotifications.has(id);
     }
-
-    // ========== ДЕСТРУКТОР ==========
-    
-    destroy() {
-        this.clearAllNotifications();
-        if (this.webView) {
-            this.webView.destroy();
-        }
-        this.isInitialized = false;
-        this.isWebViewOpen = false;
-        NotificationManager.instance = null;
-    }
 }
 
 class Interaction {
@@ -247,7 +255,7 @@ class Interaction {
     this.progressController = null;
 
     //this.keyPressCooldown = new Map(); // Можно хранить cooldown для разных типов взаимодействий
-    this.keyEDebounceMs = 500; // задержка между нажатиями
+    this.keyEDebounceMs = 1500; // задержка между нажатиями
     this.lastKeyEPressTime = 0;
 
     this.isKeyEHeld = false;    //отслеживание состояния клавиши E
@@ -317,6 +325,13 @@ class Interaction {
             // УПРАЖЕНИНИЯ  POS -1273.76, -1427.74, 4.34      RGBA 46, 204, 113
             // АВТОМАТ      POS -1269.65, -1428.26, 4.34      RGBA 52, 152, 219
             this.colshapes.push(colshape1, colshape2, colshape3);
+
+            //загрузка необходимых анимаций
+            this.loadAnimDict('mini@sprunk');
+            this.loadAnimDict('amb@world_human_push_ups@male@base');
+            this.loadAnimDict('amb@world_human_push_ups@male@idle_a');
+            this.loadAnimDict('amb@world_human_push_ups@male@exit');
+            this.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
         });
 
         
@@ -342,17 +357,17 @@ class Interaction {
                 break;
                 
             case InteractionType.EXERCISE:
-                alt.log(`InteractionType.VEHICLE`);
-                drawNotification('Упражнения');
+                alt.log(`InteractionType.EXERCISE`);
+                drawNotification('Отжимания');
                 const requiredTaps = 10;
-                NotificationManager.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
+                NotificationManager.getInstance().showTapCounter('exercise', 'Отжимания', 0, requiredTaps, 'Быстро нажимайте E!');
                 this.multipleTaps(requiredTaps);
                 break;
                 
             case InteractionType.VENDING:
-                alt.log(`InteractionType.VEHICLE`);
+                alt.log(`InteractionType.VENDING`);
                 drawNotification('Автомат');
-                const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
+                const notifId = NotificationManager.getInstance().showPersistent('Торговый автомат', 'Нажмите E что бы купить напиток');
                 this.singleTap(notifId);
                 break;
         }
@@ -425,11 +440,13 @@ class Interaction {
             alt.off('keydown', this.keyPressHandler);
             alt.log('Удален обработчик progressBar')
         }
+        
         // если уже существует обработчик keyup, удаляем его чтобы избежать дублирования (таких ситуаций не бывает в коде)
         if (this.keyUpHandler) {
             alt.off('keyup', this.keyUpHandler);
             alt.log('Удален обработчик keyup progressBar')
         }
+        
         // сбрасывает флаг выполнения процесса
         this.inProgress = false;
         // сбрасывает флаг зажатой клавиши E (важно при повторной активации)
@@ -474,12 +491,15 @@ class Interaction {
                 this.progressController = { shouldStop: false };
                 
                 alt.log('Запуск нового прогресса...');
-                
+                native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base' , 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
                 //создает и сохраняет Promise для отслеживания выполнения runProgress
                 this.currentProgressPromise = this.runProgress()
                     //обработка успешного завершения прогресса
                     .then(() => {
                         alt.log('Прогресс завершен успешно');
+                        drawNotification('Задача выполнена!');    
+                        // очистка, закрытие Webview и показ финального уведомления
+                        this.cleanup();
                     })
                     //единственный способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
                     .catch((error) => {
@@ -488,11 +508,14 @@ class Interaction {
                             alt.log('Прогресс прерван');
                             // сбрасывает прогрессбар в начальное состояние
                             NotificationManager.getInstance().updateProgressBar('lockpick', 0, `Прогресс: 0%`);
+                            //native.clearPedTasks(alt.Player.local.scriptID);
                             drawNotification('Процесс прерван!');
+
                         }
                     })
                     //выполняется в любом случае - при успехе или ошибке
                     .finally(() => {
+                        native.clearPedTasks(alt.Player.local.scriptID);
                         // сбрасываем ссылку на Promise чтобы разрешить новый запуск
                         this.currentProgressPromise = null;
                         alt.log('Промис прогресса очищен в finally');
@@ -516,22 +539,21 @@ class Interaction {
             }
         };
     
-        // Создаются обработчики событий
+        // создаются обработчики событий
         alt.on('keydown', this.keyPressHandler);
         alt.on('keyup', this.keyUpHandler);
         alt.log('Созданы обработчики progressBar');
     }
-
     
     // основной метод выполнения прогресса (взлома)
-async runProgress() {
+    async runProgress() {
     alt.log('runProgress начал выполнение');
     
     // цикл из 10 шагов прогресса (от 10% до 100%)
     for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
         // обнволение прогрессбара визуально
         NotificationManager.getInstance().updateProgressBar('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
-        alt.log(`Прогресс: ${percentcounter}/10`);
+        //alt.log(`Прогресс: ${percentcounter}/10`);
     
         // ожидание 1 секунды с возможностью прерывания и гарантированной очисткой обработчиков timeout и interval
         await new Promise((resolve, reject) => {
@@ -584,40 +606,30 @@ async runProgress() {
     alt.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
 
     // задержка что бы игрок успел увидеть 100%
-    await new Promise(resolve => alt.setTimeout(resolve, 500));
-    
-    // очистка, закрытие Webview и показ финального уведомления
-    this.cleanup();
-    drawNotification('Задача выполнена!');
-}
+    await wait(500);
+    }
 
-    singleTap(notifId){
-         if (this.keyPressHandler) {
-            alt.off('keydown', this.keyPressHandler);
-            alt.log('Удален обработчик singleTap')
-        }
+    singleTap(notifId) {
+    if (this.keyPressHandler) {
+        alt.off('keydown', this.keyPressHandler);
+        alt.log('Удален обработчик singleTap');
+    }
 
-        // Создает новый обработчик для клавиши E
-        this.keyPressHandler = async (key) => {
-            
-            //дебаунс от спама
-            if (!this.canProcessKeyPress()) {
-                return;
-            }
-            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
-            if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
+    this.keyPressHandler = async (key) => {
+        if (key !== 69) return; // E-клавиша
+        if (!this.canProcessKeyPress(key)) return;
+        if (!NotificationManager.getInstance().isWebViewOpen) return;
 
-                this.cleanup();
+        this.cleanup();
 
-                await this.playButtonPressAnimation();
+        // проигрываем анимацию покупки в автомате
+        await this.playVendingMachineAnimation();
 
-                drawNotification('Задача выполнена!');
-            }   
-        };
+        drawNotification('Задача выполнена!');
+    };
 
-        // регистрирует обработчик
-        alt.on('keydown', this.keyPressHandler);
-        alt.log('Создан обработчик нажатия Е')
+    alt.on('keydown', this.keyPressHandler);
+    alt.log('Создан обработчик нажатия Е');
     }
 
     multipleTaps(requiredTaps){
@@ -628,25 +640,30 @@ async runProgress() {
         }
 
         let pressDownCounter = 1;
-        // Создает новый обработчик для клавиши E
-        this.keyPressHandler = (key) => {
+        // cоздает новый обработчик для клавиши E
+        this.keyPressHandler = async  (key) => {
             //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
             if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
-
+                
                 //дебаунс от спама
-                if (!this.canProcessKeyPress()) {
+                if (!this.canProcessKeyPress(key)) {
                  return;
                 }
+                
                 // удаляет обработчик после нажатия
                 //this.cleanup();
                 NotificationManager.getInstance().updateTapCounter('exercise', pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
                 //NotificationManager.getInstance().hidePersistent();   //скрыть WebView
                 //   return;
-                
+                native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@base' , 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
+                await wait(1000);
+                native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a' , 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
+
                 alt.log(`Нажали Е, i = ${pressDownCounter}`);
 
                 if (pressDownCounter===requiredTaps){
                     this.cleanup();
+                    native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@exit' , 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
                     /*
                     NotificationManager.getInstance().hideTapCounter('exercise');
                     alt.log('cleanup + hideTapCounter');
@@ -664,7 +681,7 @@ async runProgress() {
 
     cleanup() {
         alt.log('Начало cleanup...');
-        
+        native.clearPedTasks(alt.Player.local.scriptID);
         //отменяем текущий прогресс при cleanup
         if (this.currentProgressPromise) {
             alt.log('Отмена прогресса в cleanup');
@@ -719,146 +736,184 @@ async runProgress() {
         alt.log('cleanup(): завершён — все обработчики и уведомления очищены.');
     }
 
-// ВАРИАНТ 4: Анимация взаимодействия с автоматом
-async playButtonPressAnimation() {
-    alt.log('Запуск анимации нажатия на кнопку...');
-    
+// Анимация взаимодействия с автоматом
+async playVendingMachineAnimation() {
+    alt.log('Запуск анимации покупки из автомата');
+
     const player = alt.Player.local;
-    
+    const ped = player.scriptID;
+
+    // позиция игрока перед автоматом
+    const posX = -1269.3890380859375;
+    const posY = -1428.19775390625;
+    const posZ = 4.3421630859375;
+    const rotZ = -51.023;
+
+    //const currentRot = native.getEntityRotation(player, 2);
+    const rotX = 0;
+    const rotY = 0;
+
+    // Перемещаем игрока и задаём новую ориентацию
+    native.freezeEntityPosition(player, true);
+    native.setEntityCoordsNoOffset(player, posX, posY, posZ, false, false, false);
+    native.setEntityRotation(player, rotX, rotY, rotZ, 2, true);
+
+    // пауза для корректного позиционирования
+    await wait(300);
+
     try {
-        // 1. БЛОКИРУЕМ УПРАВЛЕНИЕ ИГРОКОМ
-        native.freezeEntityPosition(player, true);
-        native.setPedCanSwitchWeapon(player, false);
+        const animDict = 'mini@sprunk';
+        const animUse = 'plyr_buy_drink_pt1';
+        const animDrink = 'plyr_buy_drink_pt2';
         
-        // 2. ПРОИГРЫВАЕМ АНИМАЦИЮ НАЖАТИЯ НА КНОПКУ
-        // Загружаем библиотеку анимаций
-        await this.loadAnimDict('mp_common');
+        native.taskPlayAnim(ped, animDict, animUse, 8.0, -8.0, -1, 0, 0, false, false, false);
+        //await new Promise(resolve => alt.setTimeout(resolve, 2200));
+        await wait(2200);
         
-        // Проигрываем анимацию нажатия на кнопку
-        native.taskPlayAnim(
-            player, 
-            'mp_common', 
-            'givetake1_a', 
-            8.0, // скорость
-            -8.0, 
-            -1, 
-            48, // флаги: 16 = останавливается в конце, 32 = управление движением
-            0, 
-            false, 
-            false, 
-            false
-        );
+        const drinkCan = await this.spawnProp('ng_proc_sodacan_01a');   //спавнит и приклеивает проп к руке
         
-        // ЖДЕМ ЗАВЕРШЕНИЯ АНИМАЦИИ (примерно 1-2 секунды)
-        await new Promise(resolve => alt.setTimeout(resolve, 2000));
-        
-        // 3. ОСТАНАВЛИВАЕМ АНИМАЦИЮ
-        native.stopAnimTask(player, 'mp_common', 'givetake1_a', 1.0);
-        
-    } catch (error) {
-        alt.log(`Ошибка при проигрывании анимации: ${error.message}`);
-    } finally {
-        // 4. ВОССТАНАВЛИВАЕМ УПРАВЛЕНИЕ ИГРОКОМ
+        native.taskPlayAnim(ped, animDict, animDrink, 8.0, -8.0, -1, 0, 0, false, false, false);
+        //await new Promise(resolve => alt.setTimeout(resolve, 1800));
+        await wait(1800);
+        this.deleteProp(drinkCan);
+
+    }
+    finally {
+        native.clearPedTasks(ped);
         native.freezeEntityPosition(player, false);
-        native.setPedCanSwitchWeapon(player, true);
-        
-        // 5. ОЧИЩАЕМ ПАМЯТЬ ОТ АНИМАЦИЙ
-        this.unloadAnimDict('mp_common');
-        
-        alt.log('Анимация нажатия на кнопку завершена');
+        alt.log('Анимация покупки завершена');
     }
 }
 
-// ДОБАВЛЕНО: метод для загрузки словаря анимаций
-async loadAnimDict(dict) {
-    return new Promise((resolve) => {
-        // Проверяем уже загружен ли словарь
-        if (native.hasAnimDictLoaded(dict)) {
-            resolve(true);
-            return;
+// спавн пропа перед началом анимации
+async spawnProp(modelName) {
+    //const player = alt.Player.local;
+    const ped = alt.Player.local.scriptID;
+    //const modelName = 'ng_proc_sodacan_01a';    //prop_ld_can_01  либо  ng_proc_sodacan_01a
+    const modelHash = alt.hash(modelName);  //144995201
+
+    // загружает проп
+    if (!native.hasModelLoaded(modelHash)) {
+        native.requestModel(modelHash);
+        let counter = 0;
+        while (!native.hasModelLoaded(modelHash) && counter < 100) {
+            await wait(20);
+            counter++;
         }
-        
-        // Загружаем словарь анимаций
-        native.requestAnimDict(dict);
-        
-        // Ждем загрузки
-        const interval = alt.setInterval(() => {
-            if (native.hasAnimDictLoaded(dict)) {
-                alt.clearInterval(interval);
-                resolve(true);
-                alt.log(`Словарь анимаций '${dict}' загружен`);
-            }
-        }, 100);
-        
-        // Таймаут на случай если анимация не загрузится
-        alt.setTimeout(() => {
-            alt.clearInterval(interval);
-            resolve(false);
-            alt.log(`Таймаут загрузки словаря анимаций '${dict}'`);
-        }, 5000);
-    });
+        if (!native.hasModelLoaded(modelHash)) {
+            alt.log(`spawnProp: не удалось загрузить модель ${modelName}`);
+            return null;
+        }
+    }
+
+    // получает позицию игрока и создаёт объект рядом с ним
+    const pos = native.getEntityCoords(ped, true);
+    alt.log(`getEntityCoords pos: ${pos}`);
+    const object = native.createObject(modelHash, pos.x, pos.y, pos.z, true, true, false);
+
+    // индекс кости правой руки (57005)
+    const boneIndex = 71;
+
+    // смещения/повороты под анимацию
+/*
+//для prop_ld_can_01
+const offsetX = 0.10;
+const offsetY = 0.02;
+const offsetZ = -0.01;
+
+const rotX = 85.0;
+const rotY = 0.0;
+const rotZ = 180.0;
+*/
+    // для ng_proc_sodacan_01a
+    // смещения/повороты под анимацию
+    const offsetX = 0.12; 
+    const offsetY = -0.07; 
+    const offsetZ = -0.07;
+
+    const rotX = -70.0;
+    const rotY = 0.0;
+    const rotZ = 0.0;
+    // остальные параметры для attachEntityToEntity
+    const p9 = false;           // false обычный attach
+    const useSoftPinning = true;// мягкое прикрепление
+    const collision = false;    // учитывать коллизии
+    const isPed = true;         // объект прикреплён к педу
+    const vertexIndex = 0;      // индекс вершины
+    const fixedRot = true;      // фиксировать вращение
+    const p15 = 0;              // вроде как разеревный параметр который ничего не делает
+
+
+    alt.log(`attachEntityToEntity args:
+        modelHash=${modelHash}, object=${object}, ped=${ped}, boneIndex=${boneIndex},
+        offs=${offsetX},${offsetY},${offsetZ}, rot=${rotX},${rotY},${rotZ},
+        p9=${p9}, soft=${useSoftPinning}, coll=${collision}, isPed=${isPed}, vertex=${vertexIndex}, fixedRot=${fixedRot}, extra=${p15}`);
+
+    // приклеивает проп к правой руке
+    native.attachEntityToEntity(
+        object,
+        ped,
+        boneIndex,
+        offsetX,
+        offsetY,
+        offsetZ,
+        rotX,
+        rotY,
+        rotZ,
+        p9,
+        useSoftPinning, 
+        collision,
+        isPed,
+        vertexIndex,
+        fixedRot,
+        p15
+    );
+
+    return object;
 }
 
-// ДОБАВЛЕНО: метод для выгрузки словаря анимаций
-unloadAnimDict(dict) {
-    native.removeAnimDict(dict);
-    alt.log(`Словарь анимаций '${dict}' выгружен`);
+
+deleteProp(object) {
+    if (!object) return;
+    if (native.doesEntityExist(object)) {
+        native.deleteEntity(object);
+    }
+}
+
+
+// метод для загрузки словаря анимаций
+async loadAnimDict(dict) {
+
+    if (native.hasAnimDictLoaded(dict)) {
+        return true;
+    }
+
+    native.requestAnimDict(dict);
+
+    let counter = 0;
+    while (!native.hasAnimDictLoaded(dict) && counter < 10) {
+        alt.log(`Поптыка загрузить анимацию ${dict} номер: ${counter+1}`);
+        await wait(200);
+        counter++;
+    }
+    if (!native.hasAnimDictLoaded(dict)) {
+        alt.log(`Не удалось загрузить анимацию:${dict}`);
+        return false;
+    }
+
+    /*
+    for (let counter = 1; counter <= 10; counter++) {
+        alt.log(`Поптыка загрузить анимацию номер: ${counter}`);
+        await new Promise(resolve => alt.setTimeout(resolve, 200));
+        if (native.hasAnimDictLoaded(dict)){
+            alt.log('AnimDictLoaded загрузилась анимация');
+            return;
+        }
+    }
+    alt.log(`Не удалось загрузить анимацию:${dict}`);
+    */
 }
 
 }
 
 new Interaction();
-
-/*
-// 1. Базовый абстрактный класс
-class BaseInteraction {
-    constructor(type, id, title) {}
-    startInteraction(){ 
-    
-    }
-
-    stopInteraction() {
-
-    }
-
-    updateInteraction() { 
-        
-    }
-
-    getInteractionText() { 
-
-    }
-}
-
-// 2. Конкретные реализации
-class SingleTapInteraction extends BaseInteraction {
-    // специализированная логика для одиночного нажатия
-}
-
-class ProgressInteraction extends BaseInteraction {
-    // специализированная логика для прогресс-бара  
-}
-
-class MultiTapInteraction extends BaseInteraction {
-    // специализированная логика для множественных нажатий
-}
-
-// 3. Менеджер взаимодействий
-class InteractionManager {
-    constructor() {
-        this.interactions = new Map();
-        this.activeInteraction = null;
-    }
-    
-    registerInteraction(id, interaction) {
-        this.interactions.set(id, interaction);
-    }
-    
-    // делегирование методов активной интеракции
-    startInteraction(id) {
-        this.activeInteraction = this.interactions.get(id);
-        this.activeInteraction.startInteraction();
-    }
-}
-*/
-
