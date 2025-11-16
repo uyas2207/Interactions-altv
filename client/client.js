@@ -2,6 +2,7 @@ import * as alt from 'alt-client';
 import * as native from "natives";
 
 import { InteractionType } from './Consts.js';
+//import { InteractionType } from './classes/notificationManager.js';
 
 function wait(ms){
     return new Promise(resolve => alt.setTimeout(resolve, ms));
@@ -21,23 +22,16 @@ function drawNotification(message, autoHide = true) {
 //для вызова уведомлений со стороны сервера
 alt.onServer('drawNotification', drawNotification);
 
-//уведомления через WebView
+// ====== ОСНОВНОЙ МЕНЕДЖЕР ======
 class NotificationManager {
-    static instance = null;    //для хранения единственного экземпляра класса
-    //глобальный метод для получение экземпляра класса (информации о состоянии WebView)
+    static instance = null;
+
     static getInstance() {
-        if (!this.instance) {   // если экземпляр не существует создает его
-            alt.log('instance создан в первый раз:');
-            this.instance = new NotificationManager();
-        }
-        //alt.log('Передан instance:');
-        //alt.log(`this.instance: ${JSON.stringify(this.instance, null, '\t')}`);
-        // возвращает существующий или только что созданный экземпляр
+        if (!this.instance) this.instance = new NotificationManager();
         return this.instance;
     }
 
     constructor() {
-        //проверка если NotificationManager уже создан ранее то осатльной код constructor не пройдет (по идее таких ситуаций быть не может)
         if (NotificationManager.instance) {
             alt.log('Повторный вызов constructor NotificationManager');
             return NotificationManager.instance;
@@ -46,25 +40,21 @@ class NotificationManager {
         this.webView = null;
         this.isInitialized = false;
         this.isWebViewOpen = false;
-        this.activeNotifications = new Map(); // Для отслеживания активных уведомлений
+        this.activeNotifications = new Map();
 
-        //сохраняет созданный экземпляр
-        alt.log(`Созданный экземпляр: ${JSON.stringify(this, null, '\t')}`);
         NotificationManager.instance = this;
     }
-    
+
     async initialize() {
-        // если уже инициализирован, ничего не делает (по идее таких ситуаций быть не может)
         if (this.isInitialized) {
             alt.log('NotificationManager уже инициализирован (ПОВТОРНАЯ ПОПЫТКА ВЫЗОВА INITIALIZE)');
             return;
         }
-        // запуск инициализации
         await this.init();
     }
 
     async init() {
-        this.webView = new alt.WebView('http://resource/client/html/index.html');
+        this.webView = new alt.WebView("http://resource/client/html/index.html");
 
         let resolveLoad, resolveTimeout;
         let isResolved = false;
@@ -78,170 +68,172 @@ class NotificationManager {
             };
         });
 
-    const timeoutPromise = new Promise((resolve) => {
-        resolveTimeout = () => {
-            if (!isResolved) {
-                isResolved = true;
-                resolve(false);
-            }
-        };
-    });
-
-    this.webView.once('load', resolveLoad);
-    
-    alt.setTimeout(resolveTimeout, 2000);
-  
-            //если WebView не загрузится за 2 секунды будет isLoaded = false
-            const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
-            
-            if (isLoaded) {
-                this.isInitialized = true;
-                alt.log('Notification manager initialized SUCCESS');
-            } else {
-                alt.log('Notification manager did not initialize FAILURE (timeout)');
-            }
-    }
-
-    showPersistent(title, text, id = null) {
-        if (!this.isInitialized) {
-            alt.log('Notification manager не инициализирован');
-            return null;
-        }
-        
-        const notificationId = id || `persistent_${Date.now()}`;
-        this.webView.emit('showPersistentNotification', notificationId, title, text);
-        this.activeNotifications.set(notificationId, { type: 'persistent', title, text });
-        this.isWebViewOpen = true;
-
-        return notificationId;
-    }
-
-    hidePersistent(id) {
-        if (!this.isInitialized) {
-            alt.log('Попытка скрыть Notification при isInitialized === null');
-            return;
-        }
-        
-        this.webView.emit('hidePersistentNotification', id);
-        this.activeNotifications.delete(id);
-        this.updateWebViewState();
-    }
-
-    // ========== ПРОГРЕСС-БАР ==========
-    
-    showProgressBar(id, title, initialProgress = 0, text = '') {
-        if (!this.isInitialized) {
-            alt.log('Notification manager не инициализирован');
-            return null;
-        }
-        
-        this.webView.emit('showProgressBar', id, title, initialProgress, text);
-        this.activeNotifications.set(id, { 
-            type: 'progress', 
-            title, 
-            progress: initialProgress,
-            text 
+        const timeoutPromise = new Promise((resolve) => {
+            resolveTimeout = () => {
+                if (!isResolved) {
+                    isResolved = true;
+                    resolve(false);
+                }
+            };
         });
-        this.isWebViewOpen = true;
-        
-        return id;
-    }
-    
-    updateProgressBar(id, progress, text = '') {
-        if (this.isInitialized && this.activeNotifications.has(id)) {
-            const notification = this.activeNotifications.get(id);
-            if (notification.type === 'progress') {
-                notification.progress = progress;
-                if (text) notification.text = text;
-                this.webView.emit('updateProgressBar', id, progress, text);
-            }
-        }
-    }
-    
-    hideProgressBar(id) {
-        if (this.isInitialized) {
-            this.webView.emit('hideProgressBar', id);
-            this.activeNotifications.delete(id);
-            this.updateWebViewState();
-        }
+
+        this.webView.once("load", resolveLoad);
+        alt.setTimeout(resolveTimeout, 2000);
+
+        const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
+
+        this.isInitialized = isLoaded;
     }
 
-    // ========== СЧЕТЧИКИ НАЖАТИЙ ==========
-    
-    showTapCounter(id, title, currentTaps = 0, requiredTaps = 0, text = '') {
-        if (!this.isInitialized) {
-            alt.log('Notification manager не инициализирован');
-            return null;
-        }
-        
-        this.webView.emit('showTapCounter', id, title, currentTaps, requiredTaps, text);
-        this.activeNotifications.set(id, { 
-            type: 'tapCounter', 
-            title,
-            currentTaps: currentTaps, 
-            requiredTaps: requiredTaps,
-            text
-        });
-        this.isWebViewOpen = true;
-        
-        return id;
-    }
-    
-    updateTapCounter(id, currentTaps, text = '') {
-        if (this.isInitialized && this.activeNotifications.has(id)) {
-            const notification = this.activeNotifications.get(id);
-            if (notification.type === 'tapCounter') {
-                notification.currentTaps = currentTaps;
-                if (text) notification.text = text;
-                this.webView.emit('updateTapCounter', id, currentTaps, text);
-            }
-        }
-    }
-    
-    hideTapCounter(id) {
-        if (this.isInitialized) {
-            this.webView.emit('hideTapCounter', id);
-            this.activeNotifications.delete(id);
-            this.updateWebViewState();
-        }
+    createProgressBar(id, title, progress = 0, text = "") {
+        const progressBar = new ProgressBar(this, id, title, progress, text);
+        progressBar.show();
+        return progressBar;
     }
 
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
-    
+    createTapCounter(id, title, currentTaps = 0, requiredTaps = 0, text = "") {
+        const tapCounter = new TapCounter(this, id, title, currentTaps, requiredTaps, text);
+        tapCounter.show();
+        return tapCounter;
+    }
+
+    // ====== ОБЩИЕ МЕТОДЫ ======
     updateWebViewState() {
         if (this.activeNotifications.size === 0) {
             this.isWebViewOpen = false;
             alt.log('updateWebViewState сделал isWebViewOpen = false;');
         }
     }
-    
-    hasActiveNotifications() {
-        return this.activeNotifications.size > 0;
+}
+
+// ====== Базовый класс шаблон ======
+class NotificationBase {
+    constructor(manager, id) {
+        this.manager = manager;        // ссылка на NotificationManager
+        this.id = id || `${this.constructor.name}_${Date.now()}`;
+        this.data = {};                // общие данные компонента
     }
-    
-    getActiveNotificationsCount() {
-        return this.activeNotifications.size;
-    }
-    
-    clearAllNotifications() {
-        if (!this.isInitialized) return;
-        
-        for (const id of this.activeNotifications.keys()) {
-            this.webView.emit('hidePersistentNotification', id);
+
+    // базовые методы для наследников
+    show() {}
+    update() {}
+    hide() {
+        if (this.manager.isInitialized) {
+            this.manager.activeNotifications.delete(this.id);
+            this.manager.updateWebViewState();
         }
-        
-        this.activeNotifications.clear();
-        this.isWebViewOpen = false;
-    }
-    
-    getNotificationInfo(id) {
-        return this.activeNotifications.get(id);
-    }
-    
-    hasNotification(id) {
-        return this.activeNotifications.has(id);
     }
 }
+
+// ====== Обычное уведомление (Persistent) ======
+class PersistentNotification extends NotificationBase {
+    constructor(manager, id, title, text = "") {
+        super(manager, id);
+        this.data = { title, text };
+    }
+
+    show() {
+        if (!this.manager.isInitialized) return;
+
+        const { title, text } = this.data;
+        this.manager.webView.emit("showPersistentNotification", this.id, title, text);
+        this.manager.activeNotifications.set(this.id, {
+            type: "persistent",
+            ...this.data
+        });
+        this.manager.isWebViewOpen = true;
+    }
+
+    update(title, text = "") {
+        if (!this.manager.isInitialized) return;
+
+        if (title) this.data.title = title;
+        if (text) this.data.text = text;
+
+        this.manager.webView.emit("updatePersistentNotification", this.id, this.data.title, this.data.text);
+    }
+
+    hide() {
+        if (!this.manager.isInitialized) return;
+
+        this.manager.webView.emit("hidePersistentNotification", this.id);
+        super.hide();
+    }
+}
+
+// ====== ПРОГРЕСС-БАР ======
+class ProgressBar extends NotificationBase {
+    constructor(manager, id, title, initialProgress = 0, text = "") {
+        super(manager, id);
+        this.data = { title, progress: initialProgress, text };
+    }
+
+    show() {
+        if (!this.manager.isInitialized) return;
+
+        const { title, progress, text } = this.data;
+        this.manager.webView.emit("showProgressBar", this.id, title, progress, text);
+        this.manager.activeNotifications.set(this.id, {
+            type: "progress",
+            ...this.data
+        });
+        this.manager.isWebViewOpen = true;
+    }
+
+    update(progress, text = "") {
+        if (!this.manager.isInitialized) return;
+
+        this.data.progress = progress;
+        if (text) this.data.text = text;
+
+        this.manager.webView.emit("updateProgressBar", this.id, progress, text);
+    }
+
+    hide() {
+        if (!this.manager.isInitialized) return;
+
+        this.manager.webView.emit("hideProgressBar", this.id);
+        super.hide();
+    }
+}
+
+// ====== СЧЕТЧИК НАЖАТИЙ ======
+class TapCounter extends NotificationBase {
+    constructor(manager, id, title, currentTaps = 0, requiredTaps = 0, text = "") {
+        super(manager, id);
+        this.data = { title, currentTaps, requiredTaps, text };
+    }
+
+    show() {
+        if (!this.manager.isInitialized) return;
+
+        const { title, currentTaps, requiredTaps, text } = this.data;
+        this.manager.webView.emit("showTapCounter", this.id, title, currentTaps, requiredTaps, text);
+        this.manager.activeNotifications.set(this.id, {
+            type: "tapCounter",
+            ...this.data
+        });
+        this.manager.isWebViewOpen = true;
+    }
+
+    update(currentTaps, text = "") {
+        if (!this.manager.isInitialized) return;
+
+        this.data.currentTaps = currentTaps;
+        if (text) this.data.text = text;
+
+        this.manager.webView.emit("updateTapCounter", this.id, currentTaps, text);
+    }
+
+    hide() {
+        if (!this.manager.isInitialized) return;
+
+        this.manager.webView.emit("hideTapCounter", this.id);
+        super.hide();
+    }
+}
+
+
 
 class Interaction {
     constructor() {
@@ -260,7 +252,7 @@ class Interaction {
 
     this.isKeyEHeld = false;    //отслеживание состояния клавиши E
 
-    this.initializeNotificationManager();
+    this.initializeNotificationSystem();
     this.init();
     }
 
@@ -268,10 +260,10 @@ class Interaction {
     async initializeNotificationManager() {
         alt.log('1. Инициализация NotificationManager');
         // получает экземпляр Singleton (создается при первом вызове)
-        const notificationManager = NotificationManager.getInstance();
+        //const notificationManager = NotificationSystem.getInstance();
         
         //инициализирует WebView
-        await notificationManager.initialize();
+        await NotificationSystem.getInstance().initialize();
             
         alt.log('1. NotificationManager инициализирован через Interaction');
     }
@@ -282,18 +274,18 @@ class Interaction {
         alt.onServer('client:showNotification', () => {
             //для 1 нажаия
             /*
-            const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
+            const notifId = NotificationSystem.getInstance().showPersistent('Статус', 'Выполняется задача...');
             this.singleTap(notifId);
             */
             /*
             //прогрэсбар
-            NotificationManager.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
+            NotificationSystem.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
             this.progressBar();
             */
             /*
             // множественные нажатия (Упражнения)
             const requiredTaps = 10;
-            NotificationManager.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
+            NotificationSystem.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
             this.multipleTaps(requiredTaps);
             */
         });
@@ -352,7 +344,7 @@ class Interaction {
             case InteractionType.VEHICLE:            
                 alt.log(`InteractionType.VEHICLE`);
                 drawNotification('Взлом замка');
-                NotificationManager.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
+                NotificationSystem.getInstance().progress.show('lockpick', 'Взлом замка', 0, '');
                 this.progressBar();
                 break;
                 
@@ -360,14 +352,14 @@ class Interaction {
                 alt.log(`InteractionType.EXERCISE`);
                 drawNotification('Отжимания');
                 const requiredTaps = 10;
-                NotificationManager.getInstance().showTapCounter('exercise', 'Отжимания', 0, requiredTaps, 'Быстро нажимайте E!');
+                NotificationSystem.getInstance().tapCounter.show('exercise', 'Отжимания', 0, requiredTaps, 'Быстро нажимайте E!');
                 this.multipleTaps(requiredTaps);
                 break;
                 
             case InteractionType.VENDING:
                 alt.log(`InteractionType.VENDING`);
                 drawNotification('Автомат');
-                const notifId = NotificationManager.getInstance().showPersistent('Торговый автомат', 'Нажмите E что бы купить напиток');
+                const notifId = NotificationSystem.getInstance().persistent.show('Торговый автомат', 'Нажмите E что бы купить напиток');
                 this.singleTap(notifId);
                 break;
         }
@@ -484,7 +476,7 @@ class Interaction {
             
             //проверка на нажатие E и соблюдение всех необходимых условий для погрузки
             //проверка, что WebView открыт и готов к отображению прогресса
-            if (NotificationManager.getInstance().isWebViewOpen) {
+            if (NotificationSystem.getInstance().isReady) {
                 //устанавливает флаг что процесс выполняется
                 this.inProgress = true;
                 //создаем новый контроллер прогресса с флагом остановки
@@ -507,7 +499,7 @@ class Interaction {
                         if (error.message === 'Прерывание') {
                             alt.log('Прогресс прерван');
                             // сбрасывает прогрессбар в начальное состояние
-                            NotificationManager.getInstance().updateProgressBar('lockpick', 0, `Прогресс: 0%`);
+                            NotificationSystem.getInstance().progress.update('lockpick', 0, `Прогресс: 0%`);
                             //native.clearPedTasks(alt.Player.local.scriptID);
                             drawNotification('Процесс прерван!');
 
@@ -552,7 +544,7 @@ class Interaction {
     // цикл из 10 шагов прогресса (от 10% до 100%)
     for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
         // обнволение прогрессбара визуально
-        NotificationManager.getInstance().updateProgressBar('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
+        NotificationSystem.getInstance().progress.update('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
         //alt.log(`Прогресс: ${percentcounter}/10`);
     
         // ожидание 1 секунды с возможностью прерывания и гарантированной очисткой обработчиков timeout и interval
@@ -602,7 +594,7 @@ class Interaction {
     
     // финальное отображение после того как прогресс бар дошел до конца
     this.inProgress = false;
-    NotificationManager.getInstance().updateProgressBar('lockpick', 1, `Прогресс: 100%`);
+    NotificationSystem.getInstance().progress.show('lockpick', 1, `Прогресс: 100%`);
     alt.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
 
     // задержка что бы игрок успел увидеть 100%
@@ -618,7 +610,7 @@ class Interaction {
     this.keyPressHandler = async (key) => {
         if (key !== 69) return; // E-клавиша
         if (!this.canProcessKeyPress(key)) return;
-        if (!NotificationManager.getInstance().isWebViewOpen) return;
+        if (!NotificationSystem.getInstance().isReady) return;
 
         this.cleanup();
 
@@ -643,7 +635,7 @@ class Interaction {
         // cоздает новый обработчик для клавиши E
         this.keyPressHandler = async  (key) => {
             //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
-            if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
+            if ((key === 69) && (NotificationSystem.getInstance().isReady)) {
                 
                 //дебаунс от спама
                 if (!this.canProcessKeyPress(key)) {
@@ -652,8 +644,8 @@ class Interaction {
                 
                 // удаляет обработчик после нажатия
                 //this.cleanup();
-                NotificationManager.getInstance().updateTapCounter('exercise', pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
-                //NotificationManager.getInstance().hidePersistent();   //скрыть WebView
+                NotificationSystem.getInstance().tapCounter.update('exercise', pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
+                //NotificationSystem.getInstance().hidePersistent();   //скрыть WebView
                 //   return;
                 native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@base' , 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
                 await wait(1000);
@@ -665,7 +657,7 @@ class Interaction {
                     this.cleanup();
                     native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@exit' , 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
                     /*
-                    NotificationManager.getInstance().hideTapCounter('exercise');
+                    NotificationSystem.getInstance().hideTapCounter('exercise');
                     alt.log('cleanup + hideTapCounter');
                     */
                     drawNotification('Задача выполнена!');
@@ -706,7 +698,7 @@ class Interaction {
         this.isKeyEHeld = false;
 
         // закрываем активное уведомление, если оно есть
-        const notificationManager = NotificationManager.getInstance();
+        const notificationManager = NotificationSystem.getInstance();
 
         if (notificationManager.isInitialized && notificationManager.activeNotifications.size > 0) {
             for (const [id, notification] of notificationManager.activeNotifications.entries()) {
