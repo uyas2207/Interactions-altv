@@ -22,30 +22,40 @@ function drawNotification(message, autoHide = true) {
 //для вызова уведомлений со стороны сервера
 alt.onServer('drawNotification', drawNotification);
 
-// ====== ОСНОВНОЙ МЕНЕДЖЕР ======
+// основной менеджер
 class NotificationManager {
+
     static instance = null;
 
     static getInstance() {
-        if (!this.instance) this.instance = new NotificationManager();
+        if (!this.instance) {   // если экземпляр не существует создает его
+            alt.log('instance создан в первый раз:');
+            this.instance = new NotificationManager();
+        }
+        //alt.log('Передан instance:');
+        //alt.log(`this.instance: ${JSON.stringify(this.instance, null, '\t')}`);
+        // возвращает существующий или только что созданный экземпляр
         return this.instance;
+        
     }
 
     constructor() {
+        // защита от потворного вызова constructor
         if (NotificationManager.instance) {
             alt.log('Повторный вызов constructor NotificationManager');
             return NotificationManager.instance;
         }
-        
-        this.webView = null;
-        this.isInitialized = false;
-        this.isWebViewOpen = false;
-        this.activeNotifications = new Map();
+    
+        this.webView = null;       // сслыка на место хранения webview
+        this.isInitialized = false; // для защиты от вызова webview до инициализации
+        this.isWebViewOpen = false; // для проверки показывается ли в текущий момент webview (в теории можно убрать и проверять через this.activeNotifications.size)
+        this.activeNotifications = new Map();   //хранит список всех активных webview
 
         NotificationManager.instance = this;
     }
 
     async initialize() {
+        // защита от повторной инициализации
         if (this.isInitialized) {
             alt.log('NotificationManager уже инициализирован (ПОВТОРНАЯ ПОПЫТКА ВЫЗОВА INITIALIZE)');
             return;
@@ -58,10 +68,10 @@ class NotificationManager {
 
         let resolveLoad, resolveTimeout;
         let isResolved = false;
-
+        //попытка инициализации, если не инициализируется за 2 секунды будет isLoaded false
         const loadPromise = new Promise((resolve) => {
             resolveLoad = () => {
-                if (!isResolved) {
+                if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
                     isResolved = true;
                     resolve(true);
                 }
@@ -70,7 +80,7 @@ class NotificationManager {
 
         const timeoutPromise = new Promise((resolve) => {
             resolveTimeout = () => {
-                if (!isResolved) {
+                if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
                     isResolved = true;
                     resolve(false);
                 }
@@ -86,18 +96,18 @@ class NotificationManager {
     }
 
     createProgressBar(id, title, progress = 0, text = "") {
-        const progressBar = new ProgressBar(this, id, title, progress, text);
-        progressBar.show();
-        return progressBar;
+        const progressBar = new ProgressBar(this, id, title, progress, text);    // создает ProgressBar с переданными параметрами
+        progressBar.show(); 
+        return progressBar; //возвращает ProgressBar для запоминаяния в классе Interaction
     }
 
     createTapCounter(id, title, currentTaps = 0, requiredTaps = 0, text = "") {
-        const tapCounter = new TapCounter(this, id, title, currentTaps, requiredTaps, text);
+        const tapCounter = new TapCounter(this, id, title, currentTaps, requiredTaps, text);    // создает TapCounter с переданными параметрами
         tapCounter.show();
-        return tapCounter;
+        return tapCounter;  //возвращает TapCounter для запоминаяния в класс Interaction
     }
 
-    // ====== ОБЩИЕ МЕТОДЫ ======
+    // общий метод для isWebViewOpen = false;
     updateWebViewState() {
         if (this.activeNotifications.size === 0) {
             this.isWebViewOpen = false;
@@ -106,141 +116,207 @@ class NotificationManager {
     }
 }
 
-// ====== Базовый класс шаблон ======
+// базовый класс шаблон для наследования
 class NotificationBase {
     constructor(manager, id) {
-        this.manager = manager;        // ссылка на NotificationManager
-        this.id = id || `${this.constructor.name}_${Date.now()}`;
-        this.data = {};                // общие данные компонента
+        // сохраняет ссылку на менеджер для доступа к общему состоянию
+        this.manager = manager;
+        this.id = id;
+        // для хранения данных уведомления
+        this.data = {};
     }
 
-    // базовые методы для наследников
-    show() {}
-    update() {}
-    hide() {
-        if (this.manager.isInitialized) {
-            this.manager.activeNotifications.delete(this.id);
-            this.manager.updateWebViewState();
-        }
+    show(eventName, args) {
+        // отправляет событие в webview с id уведомления и аргументами
+        this.manager.webView.emit(eventName, this.id, args[0], args[1], args[2], args[3]);
+        
+        // сохраняет уведомление в списке активных уведомлений
+        this.manager.activeNotifications.set(this.id, {
+            type: this.type, // тип уведомления (persistent, progress, tapCounter)
+            title: this.data.title, // заголовок уведомления
+            text: this.data.text, // текст уведомления
+            progress: this.data.progress, // значение прогресса (для ProgressBar)
+            currentTaps: this.data.currentTaps, // количество нажатий (для TapCounter)
+            requiredTaps: this.data.requiredTaps // количество нажатий (для TapCounter)
+        });
+        
+        this.manager.isWebViewOpen = true;
+    }
+
+    update(eventName, args) {
+        this.manager.webView.emit(eventName, this.id, args[0], args[1], args[2]);
+    }
+
+    hide(eventName) {
+        this.manager.webView.emit(eventName, this.id);
+        
+        // удаляет уведомление из списка активных уведомлений
+        this.manager.activeNotifications.delete(this.id);
+        
+        // делает isWebViewOpen = false;
+        this.manager.updateWebViewState();
     }
 }
-
-// ====== Обычное уведомление (Persistent) ======
+// класс для стандартных уведомлений с текстом 
 class PersistentNotification extends NotificationBase {
-    constructor(manager, id, title, text = "") {
+    constructor(manager, id, title, text) {
+        // вызов конструктора базового класса
         super(manager, id);
-        this.data = { title, text };
+        // тип уведомления для идентификации
+        this.type = "persistent";
+        // инциализация данных для стандартного уведомления
+        this.data = { title: title, text: text };
     }
 
     show() {
+        // защита от использования webview до инициализации 
         if (!this.manager.isInitialized) return;
-
-        const { title, text } = this.data;
-        this.manager.webView.emit("showPersistentNotification", this.id, title, text);
-        this.manager.activeNotifications.set(this.id, {
-            type: "persistent",
-            ...this.data
-        });
-        this.manager.isWebViewOpen = true;
+        // вызов метода базового класса для show
+        super.show("showPersistentNotification", [this.data.title, this.data.text]);
     }
 
-    update(title, text = "") {
+    update(title, text) {
+        // защита от использования webview до инициализации 
         if (!this.manager.isInitialized) return;
 
-        if (title) this.data.title = title;
-        if (text) this.data.text = text;
+        // обновляет заголовок и текст уведомления если передан новый
+        if (title !== undefined) {this.data.title = title}
+        if (text !== undefined) {this.data.text = text}
 
-        this.manager.webView.emit("updatePersistentNotification", this.id, this.data.title, this.data.text);
+        // вызов метода базового класса с обновленными данными
+        super.update("updatePersistentNotification", [this.data.title, this.data.text]);
     }
 
     hide() {
+        // защита от использования webview до инициализации 
         if (!this.manager.isInitialized) return;
-
-        this.manager.webView.emit("hidePersistentNotification", this.id);
-        super.hide();
+        // вызов метода базового класса для скрытия
+        super.hide("hidePersistentNotification");
     }
 }
 
-// ====== ПРОГРЕСС-БАР ======
+// класс для уведомлений с прогресс-баром
 class ProgressBar extends NotificationBase {
-    constructor(manager, id, title, initialProgress = 0, text = "") {
+    constructor(manager, id, title, initialProgress, text) {
+        // вызов конструктора базового класса
         super(manager, id);
-        this.data = { title, progress: initialProgress, text };
+        // тип уведомления для идентификации
+        this.type = "progress";
+        // инциализация данных для прогресс-бара
+        this.data = { 
+            title: title, // заголовок прогресс-бара
+            progress: initialProgress || 0, // начальное значение прогресса (по умолчанию 0)
+            text: text // текст под прогресс-баром
+        };
     }
 
     show() {
+        // защита от использования webview до инициализации
         if (!this.manager.isInitialized) return;
-
-        const { title, progress, text } = this.data;
-        this.manager.webView.emit("showProgressBar", this.id, title, progress, text);
-        this.manager.activeNotifications.set(this.id, {
-            type: "progress",
-            ...this.data
-        });
-        this.manager.isWebViewOpen = true;
+        // вызов метода базового класса с данными прогресс-бара
+        super.show("showProgressBar", [this.data.title, this.data.progress, this.data.text]);
     }
 
-    update(progress, text = "") {
+    update(progress, text) {
+        // защита от использования webview до инициализации 
         if (!this.manager.isInitialized) return;
 
+        // обновление значения прогресса
         this.data.progress = progress;
-        if (text) this.data.text = text;
+        // обновляет текст если передан новый
+        if (text !== undefined) this.data.text = text;
 
-        this.manager.webView.emit("updateProgressBar", this.id, progress, text);
+        // вызов метода базового класса с обновленными данными прогресса
+        super.update("updateProgressBar", [this.data.progress, this.data.text]);
     }
 
     hide() {
+        // защита от использования webview до инициализации 
         if (!this.manager.isInitialized) return;
-
-        this.manager.webView.emit("hideProgressBar", this.id);
-        super.hide();
+        // вызов метода базового класса для скрытия ProgressBar
+        super.hide("hideProgressBar");
     }
 }
 
-// ====== СЧЕТЧИК НАЖАТИЙ ======
+// класс для уведомлений счетчиков нажатий
 class TapCounter extends NotificationBase {
-    constructor(manager, id, title, currentTaps = 0, requiredTaps = 0, text = "") {
+    constructor(manager, id, title, currentTaps, requiredTaps, text) {
+        // вызов конструктора базового класса
         super(manager, id);
-        this.data = { title, currentTaps, requiredTaps, text };
+        // тип уведомления для идентификации
+        this.type = "tapCounter";
+        // инициализирует данные счетчика нажатий
+        this.data = { 
+            title: title, 
+            currentTaps: currentTaps,
+            requiredTaps: requiredTaps,
+            text: text
+        };
     }
 
     show() {
+        // защита от использования webview до инициализации
         if (!this.manager.isInitialized) return;
-
-        const { title, currentTaps, requiredTaps, text } = this.data;
-        this.manager.webView.emit("showTapCounter", this.id, title, currentTaps, requiredTaps, text);
-        this.manager.activeNotifications.set(this.id, {
-            type: "tapCounter",
-            ...this.data
-        });
-        this.manager.isWebViewOpen = true;
+        // вызов метода базового класса с данными счетчика
+        super.show("showTapCounter", [this.data.title, this.data.currentTaps, this.data.requiredTaps, this.data.text]);
     }
 
-    update(currentTaps, text = "") {
+    update(currentTaps, text) {
+        // защита от использования webview до инициализации
         if (!this.manager.isInitialized) return;
 
         this.data.currentTaps = currentTaps;
-        if (text) this.data.text = text;
+        if (text !== undefined) this.data.text = text;
 
-        this.manager.webView.emit("updateTapCounter", this.id, currentTaps, text);
+        //вызов метода базового класса с обновленными данными счетчика
+        super.update("updateTapCounter", [this.data.currentTaps, this.data.text]);
     }
 
     hide() {
+        // защита от использования webview до инициализации 
         if (!this.manager.isInitialized) return;
+        //вызов метода базового класса для скрытия счетчика
+        super.hide("hideTapCounter");
+    }
+}
+// класс для создания и уничтожения визуальных элементов точки и колшейпов
+class PointVisuals {
+    constructor(position, config = {}) {
+        this.position = position;
+        this.config = config;
+    }
 
-        this.manager.webView.emit("hideTapCounter", this.id);
-        super.hide();
+    create() {
+        const marker = new alt.Marker(
+            this.config.markerType, 
+            this.position, 
+            this.config.color
+        );
+        marker.scale = this.config.scale;
+
+        const colshape = new alt.ColshapeSphere(
+            this.position.x, 
+            this.position.y, 
+            this.position.z + (this.config.heightOffset), 
+            this.config.radius
+        );
+
+        return { marker, colshape };
     }
 }
 
-
-
 class Interaction {
     constructor() {
+
+    this.currentProgressBar = null;
+    this.currentTapCounter = null;
+    this.currentPersistent = null;
+
     this.keyPressHandler = null;
     this.keyUpHandler = null;
     this.inProgress = false;
     this.colshapes = []; // массив для колшейпов
+    this.markers = []; // массив для маркеров
 
     //управление асинхронными операциями
     this.currentProgressPromise = null;
@@ -252,18 +328,54 @@ class Interaction {
 
     this.isKeyEHeld = false;    //отслеживание состояния клавиши E
 
-    this.initializeNotificationSystem();
+    this.initializeNotificationManager();
     this.init();
+
+    this.interactionPoints = [
+            {   //данные точки для взлома машины
+                position: new alt.Vector3(-1275.08, -1431.94, 3.47),
+                config: {
+                    interactionType: InteractionType.VEHICLE,
+                    color: new alt.RGBA(241, 196, 15),
+                    scale: new alt.Vector3(1.5, 1.5, 1.5),
+                    markerType: 1,
+                    heightOffset: 1,    // + по координате z
+                    radius: 1
+                }
+            },
+            {   //данные точки для упражнений
+                position: new alt.Vector3(-1273.76, -1427.74, 3.34),
+                config: {
+                    interactionType: InteractionType.EXERCISE,
+                    color: new alt.RGBA(46, 204, 113),
+                    scale: new alt.Vector3(1.5, 1.5, 1.5),
+                    markerType: 1,
+                    heightOffset: 1,    // + по координате z
+                    radius: 1
+                }
+            },
+            {   //данные точки для автомата с колой
+                position: new alt.Vector3(-1269.45, -1428.14, 3.34),
+                config: {
+                    interactionType: InteractionType.VENDING,
+                    color: new alt.RGBA(52, 152, 219),
+                    scale: new alt.Vector3(1.5, 1.5, 1.5),
+                    markerType: 1,
+                    heightOffset: 1,
+                    radius: 1
+                }
+            }
+        ];
     }
 
     // метод для инициализации NotificationManager
     async initializeNotificationManager() {
         alt.log('1. Инициализация NotificationManager');
         // получает экземпляр Singleton (создается при первом вызове)
-        //const notificationManager = NotificationSystem.getInstance();
+        const notificationManager = NotificationManager.getInstance();
         
         //инициализирует WebView
-        await NotificationSystem.getInstance().initialize();
+        await notificationManager.initialize();
             
         alt.log('1. NotificationManager инициализирован через Interaction');
     }
@@ -274,56 +386,45 @@ class Interaction {
         alt.onServer('client:showNotification', () => {
             //для 1 нажаия
             /*
-            const notifId = NotificationSystem.getInstance().showPersistent('Статус', 'Выполняется задача...');
+            const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
             this.singleTap(notifId);
             */
             /*
             //прогрэсбар
-            NotificationSystem.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
+            NotificationManager.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
             this.progressBar();
             */
             /*
             // множественные нажатия (Упражнения)
             const requiredTaps = 10;
-            NotificationSystem.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
+            NotificationManager.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
             this.multipleTaps(requiredTaps);
             */
         });
 
-        alt.onServer('client:sceneDemo', () => {
-            const position1 = new alt.Vector3(-1275.08, -1431.94, 3.47);    // МАШИНА
-            const position2 = new alt.Vector3(-1273.76, -1427.74, 3.34);    // УПРАЖЕНИНИЯ
-            const position3 = new alt.Vector3(-1269.45, -1428.14, 3.34);    // АВТОМАТ
-            const scale = new alt.Vector3(1.5, 1.5, 1.5)
-            const color1 = new alt.RGBA(241, 196, 15);
-            const color2 = new alt.RGBA(46, 204, 113);
-            const color3 = new alt.RGBA(52, 152, 219);
-            const marker1 = new alt.Marker(1, position1, color1);
-            marker1.scale = scale;
-            const marker2 = new alt.Marker(1, position2, color2);
-            marker2.scale = scale
-            const marker3 = new alt.Marker(1, position3, color3);
-            marker3.scale = scale
+        alt.onServer('client:sceneDemo', async () => {
+            this.interactionPoints.forEach((point, index) => {
+                const visuals = new PointVisuals(point.position, point.config).create();
+        
+                // добавление дополнительных свойств для колшейпов
+                visuals.colshape.interactionType = point.config.interactionType;
+                visuals.colshape.pointIndex = index; // для идентификации точки
+        
+                // добавление данных созданной точки в массивы
+                this.markers.push(visuals.marker);
+                this.colshapes.push(visuals.colshape);
+            });
 
-            const colshape1 = new alt.ColshapeSphere(position1.x, position1.y, position1.z+1, 1);
-            const colshape2 = new alt.ColshapeSphere(position2.x, position2.y, position2.z+1, 1);
-            const colshape3 = new alt.ColshapeSphere(position3.x, position3.y, position3.z+1, 1);
-            
-            colshape1.interactionType = InteractionType.VEHICLE;
-            colshape2.interactionType = InteractionType.EXERCISE;
-            colshape3.interactionType = InteractionType.VENDING;
+            alt.log(`Создано маркеров: ${this.markers.length}`);
+            alt.log(`Создано колшейпов: ${this.colshapes.length}`);
+            alt.log(`Массив колшейпов:`, this.colshapes);
 
-            // МАШИНА       POS -1275.08, -1431.94, 4.47      RGBA 241, 196, 15
-            // УПРАЖЕНИНИЯ  POS -1273.76, -1427.74, 4.34      RGBA 46, 204, 113
-            // АВТОМАТ      POS -1269.65, -1428.26, 4.34      RGBA 52, 152, 219
-            this.colshapes.push(colshape1, colshape2, colshape3);
-
-            //загрузка необходимых анимаций
-            this.loadAnimDict('mini@sprunk');
-            this.loadAnimDict('amb@world_human_push_ups@male@base');
-            this.loadAnimDict('amb@world_human_push_ups@male@idle_a');
-            this.loadAnimDict('amb@world_human_push_ups@male@exit');
-            this.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
+            // последовательная загрузка необходимых анимаций
+            await AnimationManager.loadAnimDict('mini@sprunk');
+            await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@base');
+            await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@idle_a');
+            await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@exit');
+            await AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
         });
 
         
@@ -336,15 +437,15 @@ class Interaction {
         if (!(entity instanceof alt.Player)) return;
 
         //проверка на случай если будут добавлены еще колшейпы
-        if (colshape.interactionType) {
+        if (!colshape.interactionType) return;
         const player = entity;
-         this.currentColshape = colshape; // Сохраняем текущий колшейп
+        this.currentColshape = colshape; // Сохраняем текущий колшейп
 
         switch(colshape.interactionType) {
             case InteractionType.VEHICLE:            
                 alt.log(`InteractionType.VEHICLE`);
                 drawNotification('Взлом замка');
-                NotificationSystem.getInstance().progress.show('lockpick', 'Взлом замка', 0, '');
+                this.currentProgressBar = NotificationManager.getInstance().createProgressBar('lockpick', 'Взлом замка', 0, '');
                 this.progressBar();
                 break;
                 
@@ -352,20 +453,19 @@ class Interaction {
                 alt.log(`InteractionType.EXERCISE`);
                 drawNotification('Отжимания');
                 const requiredTaps = 10;
-                NotificationSystem.getInstance().tapCounter.show('exercise', 'Отжимания', 0, requiredTaps, 'Быстро нажимайте E!');
+                this.currentTapCounter = NotificationManager.getInstance().createTapCounter('exercise', 'Отжимания', 0, requiredTaps, 'Быстро нажимайте E!');
                 this.multipleTaps(requiredTaps);
                 break;
                 
             case InteractionType.VENDING:
                 alt.log(`InteractionType.VENDING`);
                 drawNotification('Автомат');
-                const notifId = NotificationSystem.getInstance().persistent.show('Торговый автомат', 'Нажмите E что бы купить напиток');
-                this.singleTap(notifId);
+                this.currentPersistent = new PersistentNotification(NotificationManager.getInstance(), 'vending', 'Торговый автомат', 'Нажмите E чтобы купить напиток');
+                this.currentPersistent.show();
+                this.singleTap();
                 break;
         }
         
-        
-        }
     }
 
     stopInteraction(colshape, entity){
@@ -454,7 +554,7 @@ class Interaction {
                 return; // если дебаунс активен, отменяет последующие действия
             }
             
-            //устанавливаем флаг что клавиша E нажата
+            //устанавливает флаг что клавиша E нажата
             //этот флаг будет использоваться в runProgress для определения отпущена ли клавиша
             this.isKeyEHeld = true;
             
@@ -462,11 +562,11 @@ class Interaction {
             //если уже выполняется другой процесс прогресса, отменяем его (таких ситуаций не бывает в коде)
             if (this.currentProgressPromise) {
                 alt.log('Прогресс уже выполняется, отменяем предыдущий');
-                // Устанавливаем флаг прерывания для текущего прогресса
+                // устанавливает флаг прерывания для текущего прогресса
                 this.cancelProgress();
-                // Ждем завершения предыдущего промиса (асинхронная отмена)
+                // ожиадние завершения предыдущего промиса (асинхронная отмена)
                 try {
-                    // Ожидаем завершения предыдущего прогресса, игнорируя ошибки
+                    // ожиадние завершения предыдущего прогресса, игнорируя ошибки
                     await this.currentProgressPromise.catch(() => {});
                     alt.log('Предыдущий прогресс завершен');
                 } catch (error) {
@@ -474,15 +574,15 @@ class Interaction {
                 }
             }
             
-            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки
             //проверка, что WebView открыт и готов к отображению прогресса
-            if (NotificationSystem.getInstance().isReady) {
+            if (NotificationManager.getInstance().isWebViewOpen) {
                 //устанавливает флаг что процесс выполняется
                 this.inProgress = true;
                 //создаем новый контроллер прогресса с флагом остановки
                 this.progressController = { shouldStop: false };
                 
                 alt.log('Запуск нового прогресса...');
+                //анимация для взлома
                 native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base' , 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
                 //создает и сохраняет Promise для отслеживания выполнения runProgress
                 this.currentProgressPromise = this.runProgress()
@@ -490,25 +590,25 @@ class Interaction {
                     .then(() => {
                         alt.log('Прогресс завершен успешно');
                         drawNotification('Задача выполнена!');    
-                        // очистка, закрытие Webview и показ финального уведомления
+                        // очистка, закрытие Webview
                         this.cleanup();
                     })
-                    //единственный способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
+                    //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
                     .catch((error) => {
                         //преднамеренное прерывание
                         if (error.message === 'Прерывание') {
                             alt.log('Прогресс прерван');
                             // сбрасывает прогрессбар в начальное состояние
-                            NotificationSystem.getInstance().progress.update('lockpick', 0, `Прогресс: 0%`);
-                            //native.clearPedTasks(alt.Player.local.scriptID);
+                            if (this.currentProgressBar){this.currentProgressBar.update(0, `Прогресс: 0%`);}
                             drawNotification('Процесс прерван!');
 
                         }
                     })
                     //выполняется в любом случае - при успехе или ошибке
                     .finally(() => {
+                        //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
                         native.clearPedTasks(alt.Player.local.scriptID);
-                        // сбрасываем ссылку на Promise чтобы разрешить новый запуск
+                        // сбрасывает ссылку на Promise чтобы разрешить новый запуск
                         this.currentProgressPromise = null;
                         alt.log('Промис прогресса очищен в finally');
                     });
@@ -544,10 +644,9 @@ class Interaction {
     // цикл из 10 шагов прогресса (от 10% до 100%)
     for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
         // обнволение прогрессбара визуально
-        NotificationSystem.getInstance().progress.update('lockpick', percentcounter/10, `Прогресс: ${percentcounter*10}%`);
-        //alt.log(`Прогресс: ${percentcounter}/10`);
-    
-        // ожидание 1 секунды с возможностью прерывания и гарантированной очисткой обработчиков timeout и interval
+        this.currentProgressBar.update( percentcounter / 10, `Прогресс: ${percentcounter * 10}%`);
+     
+        // ожидание 1 секунды с возможностью прерывания и очисткой обработчиков timeout и interval
         await new Promise((resolve, reject) => {
             // для проверки от множественного вызова resolve/reject
             let isResolved = false;
@@ -583,7 +682,7 @@ class Interaction {
             // ВАРИАНТ 2: ПРЕРЫВАНИЕ
             // Интервал который проверяет условия прерывания каждые 200ms
             const interval = alt.setInterval(() => {
-                // Игрок отпустил клавишу -> Была запрошена остановка
+                // Игрок отпустил клавишу -> Была запрошена остановка (shouldStop)
                 if (this.progressController.shouldStop) {
                     safeReject(new Error('Прерывание'));
                     alt.log(`Шаг ${percentcounter} прерван`);
@@ -592,30 +691,28 @@ class Interaction {
         });
     }
     
-    // финальное отображение после того как прогресс бар дошел до конца
+    // финальное отображение после того как прогрессбар дошел до конца
     this.inProgress = false;
-    NotificationSystem.getInstance().progress.show('lockpick', 1, `Прогресс: 100%`);
+    this.currentProgressBar.update(1, `Прогресс: 100%`);
     alt.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
 
     // задержка что бы игрок успел увидеть 100%
     await wait(500);
     }
 
-    singleTap(notifId) {
+    singleTap() {
     if (this.keyPressHandler) {
         alt.off('keydown', this.keyPressHandler);
         alt.log('Удален обработчик singleTap');
     }
 
     this.keyPressHandler = async (key) => {
-        if (key !== 69) return; // E-клавиша
-        if (!this.canProcessKeyPress(key)) return;
-        if (!NotificationSystem.getInstance().isReady) return;
+        if ((key !== 69) || (!this.canProcessKeyPress(key)) || (!NotificationManager.getInstance().isWebViewOpen)) return;
 
         this.cleanup();
 
-        // проигрываем анимацию покупки в автомате
-        await this.playVendingMachineAnimation();
+        // запуск анимации покупки в автомате
+        await AnimationManager.playVendingMachineAnimation();
 
         drawNotification('Задача выполнена!');
     };
@@ -635,31 +732,26 @@ class Interaction {
         // cоздает новый обработчик для клавиши E
         this.keyPressHandler = async  (key) => {
             //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
-            if ((key === 69) && (NotificationSystem.getInstance().isReady)) {
+            if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
                 
                 //дебаунс от спама
                 if (!this.canProcessKeyPress(key)) {
                  return;
                 }
                 
-                // удаляет обработчик после нажатия
-                //this.cleanup();
-                NotificationSystem.getInstance().tapCounter.update('exercise', pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
-                //NotificationSystem.getInstance().hidePersistent();   //скрыть WebView
-                //   return;
+                this.currentTapCounter.update( pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
+                //анимация 1 отжимания (так как за 1 секунду делается только 1 отжимание)
                 native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@base' , 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
                 await wait(1000);
+                //анимация ожидания следующего отжимания (следущего нажатия E)
                 native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a' , 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
 
                 alt.log(`Нажали Е, i = ${pressDownCounter}`);
 
-                if (pressDownCounter===requiredTaps){
+                if (pressDownCounter === requiredTaps){
                     this.cleanup();
+                    // анимация выхода из отжимания
                     native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@exit' , 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
-                    /*
-                    NotificationSystem.getInstance().hideTapCounter('exercise');
-                    alt.log('cleanup + hideTapCounter');
-                    */
                     drawNotification('Задача выполнена!');
                 }
                 pressDownCounter++;
@@ -673,14 +765,14 @@ class Interaction {
 
     cleanup() {
         alt.log('Начало cleanup...');
+        //сброс всех активных анимаций
         native.clearPedTasks(alt.Player.local.scriptID);
-        //отменяем текущий прогресс при cleanup
+        //отменяем текущий прогресс (для progressBar) при cleanup
         if (this.currentProgressPromise) {
             alt.log('Отмена прогресса в cleanup');
             this.cancelProgress();
             this.currentProgressPromise = null;
         }
-        
         // снимаем обработчики клавиш
         if (this.keyPressHandler) {
             alt.off('keydown', this.keyPressHandler);
@@ -698,23 +790,26 @@ class Interaction {
         this.isKeyEHeld = false;
 
         // закрываем активное уведомление, если оно есть
-        const notificationManager = NotificationSystem.getInstance();
+        const notificationManager = NotificationManager.getInstance();
 
         if (notificationManager.isInitialized && notificationManager.activeNotifications.size > 0) {
             for (const [id, notification] of notificationManager.activeNotifications.entries()) {
                 switch (notification.type) {
                     case 'persistent':
-                        notificationManager.hidePersistent(id);
+                        this.currentPersistent.hide();
+                        this.currentPersistent = null;
                         alt.log(`cleanup(): скрыт persistent (${id})`);
                         break;
 
                     case 'progress':
-                        notificationManager.hideProgressBar(id);
+                        this.currentProgressBar.hide();
+                        this.currentProgressBar = null;
                         alt.log(`cleanup(): скрыт progress-bar (${id})`);
                         break;
 
                     case 'tapCounter':
-                        notificationManager.hideTapCounter(id);
+                        this.currentTapCounter.hide();
+                        this.currentTapCounter = null;
                         alt.log(`cleanup(): скрыт tapCounter (${id})`);
                         break;
 
@@ -727,185 +822,172 @@ class Interaction {
 
         alt.log('cleanup(): завершён — все обработчики и уведомления очищены.');
     }
-
-// Анимация взаимодействия с автоматом
-async playVendingMachineAnimation() {
-    alt.log('Запуск анимации покупки из автомата');
-
-    const player = alt.Player.local;
-    const ped = player.scriptID;
-
-    // позиция игрока перед автоматом
-    const posX = -1269.3890380859375;
-    const posY = -1428.19775390625;
-    const posZ = 4.3421630859375;
-    const rotZ = -51.023;
-
-    //const currentRot = native.getEntityRotation(player, 2);
-    const rotX = 0;
-    const rotY = 0;
-
-    // Перемещаем игрока и задаём новую ориентацию
-    native.freezeEntityPosition(player, true);
-    native.setEntityCoordsNoOffset(player, posX, posY, posZ, false, false, false);
-    native.setEntityRotation(player, rotX, rotY, rotZ, 2, true);
-
-    // пауза для корректного позиционирования
-    await wait(300);
-
-    try {
-        const animDict = 'mini@sprunk';
-        const animUse = 'plyr_buy_drink_pt1';
-        const animDrink = 'plyr_buy_drink_pt2';
-        
-        native.taskPlayAnim(ped, animDict, animUse, 8.0, -8.0, -1, 0, 0, false, false, false);
-        //await new Promise(resolve => alt.setTimeout(resolve, 2200));
-        await wait(2200);
-        
-        const drinkCan = await this.spawnProp('ng_proc_sodacan_01a');   //спавнит и приклеивает проп к руке
-        
-        native.taskPlayAnim(ped, animDict, animDrink, 8.0, -8.0, -1, 0, 0, false, false, false);
-        //await new Promise(resolve => alt.setTimeout(resolve, 1800));
-        await wait(1800);
-        this.deleteProp(drinkCan);
-
-    }
-    finally {
-        native.clearPedTasks(ped);
-        native.freezeEntityPosition(player, false);
-        alt.log('Анимация покупки завершена');
-    }
 }
 
-// спавн пропа перед началом анимации
-async spawnProp(modelName) {
-    //const player = alt.Player.local;
-    const ped = alt.Player.local.scriptID;
-    //const modelName = 'ng_proc_sodacan_01a';    //prop_ld_can_01  либо  ng_proc_sodacan_01a
-    const modelHash = alt.hash(modelName);  //144995201
+class AnimationManager {
+    static config = {
+        // Настройки для спавна пропов
+        propSettings: {
+            boneIndex: 71, // индекс кости правой руки
+            // настройки для разных моделей пропов
+            modelOffsets: {
+                'ng_proc_sodacan_01a': {
+                    offsetX: 0.12,
+                    offsetY: -0.07,
+                    offsetZ: -0.07,
+                    rotX: -70.0,
+                    rotY: 0.0,
+                    rotZ: 0.0
+                }
+            },
+            // общие настройки для attachEntityToEntity
+            attachSettings: {
+                p9: false,              // false обычный attach
+                useSoftPinning: true,   // мягкое прикрепление
+                collision: false,       // учитывать коллизии
+                isPed: true,            // объект прикреплён к педу
+                vertexIndex: 0,         // индекс вершины
+                fixedRot: true,         // фиксировать вращение
+                p15: 0                  // вроде как разеревный параметр который ничего не делает
+            }
+        },
+        
+        // настройки для анимации торгового автомата
+        vendingMachine: {
+            position: {
+                x: -1269.3890380859375,
+                y: -1428.19775390625,
+                z: 4.3421630859375,
+                rotZ: -51.023
+            },
+            animations: {
+                dict: 'mini@sprunk',
+                use: 'plyr_buy_drink_pt1',
+                drink: 'plyr_buy_drink_pt2'
+            }
+        }
+    };
 
-    // загружает проп
-    if (!native.hasModelLoaded(modelHash)) {
-        native.requestModel(modelHash);
+    // метод для загрузки словаря анимаций
+    static async loadAnimDict(dict) {
+        if (native.hasAnimDictLoaded(dict)) {
+            return true;
+        }
+
+        native.requestAnimDict(dict);
+
         let counter = 0;
-        while (!native.hasModelLoaded(modelHash) && counter < 100) {
-            await wait(20);
+        while (!native.hasAnimDictLoaded(dict) && counter < 100) {
+            alt.log(`Поптыка загрузить анимацию ${dict} номер: ${counter+1}`);
+            await wait(200);
             counter++;
         }
+        if (!native.hasAnimDictLoaded(dict)) {
+            alt.log(`Не удалось загрузить анимацию:${dict}`);
+            return false;
+        }
+    }
+
+    // спавн пропа перед началом анимации
+    static async spawnProp(modelName) {
+        const ped = alt.Player.local.scriptID;
+        const modelHash = alt.hash(modelName);
+
+        // загружает проп
         if (!native.hasModelLoaded(modelHash)) {
-            alt.log(`spawnProp: не удалось загрузить модель ${modelName}`);
-            return null;
+            native.requestModel(modelHash);
+            let counter = 0;
+            while (!native.hasModelLoaded(modelHash) && counter < 100) {
+                await wait(20);
+                counter++;
+            }
+            if (!native.hasModelLoaded(modelHash)) {
+                alt.log(`spawnProp: не удалось загрузить модель ${modelName}`);
+                return null;
+            }
+        }
+
+        // получает позицию игрока и создаёт объект рядом с ним
+        const pos = native.getEntityCoords(ped, true);
+        alt.log(`getEntityCoords pos: ${pos}`);
+        const object = native.createObject(modelHash, pos.x, pos.y, pos.z, true, true, false);
+
+        // Получаем настройки для конкретной модели
+        const modelConfig = this.config.propSettings.modelOffsets[modelName]
+
+        const { offsetX, offsetY, offsetZ, rotX, rotY, rotZ } = modelConfig;
+        const attachSettings = this.config.propSettings.attachSettings;
+
+        alt.log(`attachEntityToEntity args:
+            modelHash=${modelHash}, object=${object}, ped=${ped}, boneIndex=${this.config.propSettings.boneIndex},
+            offs=${offsetX},${offsetY},${offsetZ}, rot=${rotX},${rotY},${rotZ}, p9=${attachSettings.p9}, soft=${attachSettings.useSoftPinning},
+            coll=${attachSettings.collision}, isPed=${attachSettings.isPed}, vertex=${attachSettings.vertexIndex}, fixedRot=${attachSettings.fixedRot}, extra=${attachSettings.p15}`);
+
+        // приклеивает проп к правой руке
+        native.attachEntityToEntity(
+            object,
+            ped,
+            this.config.propSettings.boneIndex,
+            offsetX,
+            offsetY,
+            offsetZ,
+            rotX,
+            rotY,
+            rotZ,
+            attachSettings.p9,
+            attachSettings.useSoftPinning, 
+            attachSettings.collision,
+            attachSettings.isPed,
+            attachSettings.vertexIndex,
+            attachSettings.fixedRot,
+            attachSettings.p15
+        );
+
+        return object;
+    }
+
+    static deleteProp(object) {
+        if (!object) return;
+        if (native.doesEntityExist(object)) {
+            native.deleteEntity(object);
         }
     }
 
-    // получает позицию игрока и создаёт объект рядом с ним
-    const pos = native.getEntityCoords(ped, true);
-    alt.log(`getEntityCoords pos: ${pos}`);
-    const object = native.createObject(modelHash, pos.x, pos.y, pos.z, true, true, false);
+    // Анимация взаимодействия с автоматом
+    static async playVendingMachineAnimation() {
+        alt.log('Запуск анимации покупки из автомата');
 
-    // индекс кости правой руки (57005)
-    const boneIndex = 71;
+        const player = alt.Player.local;
+        const ped = player.scriptID;
 
-    // смещения/повороты под анимацию
-/*
-//для prop_ld_can_01
-const offsetX = 0.10;
-const offsetY = 0.02;
-const offsetZ = -0.01;
+        const vendingConfig = this.config.vendingMachine;
+        const animConfig = vendingConfig.animations;
 
-const rotX = 85.0;
-const rotY = 0.0;
-const rotZ = 180.0;
-*/
-    // для ng_proc_sodacan_01a
-    // смещения/повороты под анимацию
-    const offsetX = 0.12; 
-    const offsetY = -0.07; 
-    const offsetZ = -0.07;
+        // Перемещаем игрока и задаём новую ориентацию
+        native.freezeEntityPosition(player, true);
+        native.setEntityCoordsNoOffset(player, vendingConfig.position.x, vendingConfig.position.y, vendingConfig.position.z, false, false, false);
+        native.setEntityRotation(player, 0, 0, vendingConfig.position.rotZ, 2, true);
 
-    const rotX = -70.0;
-    const rotY = 0.0;
-    const rotZ = 0.0;
-    // остальные параметры для attachEntityToEntity
-    const p9 = false;           // false обычный attach
-    const useSoftPinning = true;// мягкое прикрепление
-    const collision = false;    // учитывать коллизии
-    const isPed = true;         // объект прикреплён к педу
-    const vertexIndex = 0;      // индекс вершины
-    const fixedRot = true;      // фиксировать вращение
-    const p15 = 0;              // вроде как разеревный параметр который ничего не делает
+        // пауза для корректного позиционирования
+        await wait(300);
 
+        try {
+            native.taskPlayAnim(ped, animConfig.dict, animConfig.use, 8.0, -8.0, -1, 0, 0, false, false, false);
+            await wait(2200);
+            
+            const drinkCan = await AnimationManager.spawnProp('ng_proc_sodacan_01a');
+            
+            native.taskPlayAnim(ped, animConfig.dict, animConfig.drink, 8.0, -8.0, -1, 0, 0, false, false, false);
+            await wait(1800);
+            AnimationManager.deleteProp(drinkCan);
 
-    alt.log(`attachEntityToEntity args:
-        modelHash=${modelHash}, object=${object}, ped=${ped}, boneIndex=${boneIndex},
-        offs=${offsetX},${offsetY},${offsetZ}, rot=${rotX},${rotY},${rotZ},
-        p9=${p9}, soft=${useSoftPinning}, coll=${collision}, isPed=${isPed}, vertex=${vertexIndex}, fixedRot=${fixedRot}, extra=${p15}`);
-
-    // приклеивает проп к правой руке
-    native.attachEntityToEntity(
-        object,
-        ped,
-        boneIndex,
-        offsetX,
-        offsetY,
-        offsetZ,
-        rotX,
-        rotY,
-        rotZ,
-        p9,
-        useSoftPinning, 
-        collision,
-        isPed,
-        vertexIndex,
-        fixedRot,
-        p15
-    );
-
-    return object;
-}
-
-
-deleteProp(object) {
-    if (!object) return;
-    if (native.doesEntityExist(object)) {
-        native.deleteEntity(object);
-    }
-}
-
-
-// метод для загрузки словаря анимаций
-async loadAnimDict(dict) {
-
-    if (native.hasAnimDictLoaded(dict)) {
-        return true;
-    }
-
-    native.requestAnimDict(dict);
-
-    let counter = 0;
-    while (!native.hasAnimDictLoaded(dict) && counter < 10) {
-        alt.log(`Поптыка загрузить анимацию ${dict} номер: ${counter+1}`);
-        await wait(200);
-        counter++;
-    }
-    if (!native.hasAnimDictLoaded(dict)) {
-        alt.log(`Не удалось загрузить анимацию:${dict}`);
-        return false;
-    }
-
-    /*
-    for (let counter = 1; counter <= 10; counter++) {
-        alt.log(`Поптыка загрузить анимацию номер: ${counter}`);
-        await new Promise(resolve => alt.setTimeout(resolve, 200));
-        if (native.hasAnimDictLoaded(dict)){
-            alt.log('AnimDictLoaded загрузилась анимация');
-            return;
+        }
+        finally {
+            native.clearPedTasks(ped);
+            native.freezeEntityPosition(player, false);
+            alt.log('Анимация покупки завершена');
         }
     }
-    alt.log(`Не удалось загрузить анимацию:${dict}`);
-    */
-}
-
 }
 
 new Interaction();
