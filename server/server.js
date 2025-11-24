@@ -1,4 +1,3 @@
-
 // alt:V built-in module that provides server-side API.
 import * as alt from 'alt-server';
 // Your chat resource module.
@@ -16,8 +15,6 @@ class InteractionServer {
         alt.on('playerConnect', async (player) => {
             this.initializePlayer(player);
             this.demonstrationScene(player);
-
-            await new Promise(resolve => alt.setTimeout(resolve, 3000));
         });
 
         alt.onClient('client:succesSingleTapInteraction', (player) => {
@@ -31,9 +28,18 @@ class InteractionServer {
         alt.onClient('client:succesHoldInteraction', (player) => {
             this.completeInteraction(player, InteractionType.VEHICLE);
         });
+
+        chat.registerCmd('create', (player, arg) => {
+            if (!arg || !['1', '2', '3'].includes(String(arg))) {
+                chat.send(player, 'Использование: /create 1,2,3');
+                return;
+            }
+            const type = parseInt(arg[0]);
+            this.createPoint(player, type);
+        });
     }
 
-    // Создание записи о игроке
+    // создание записи о игроке
     initializePlayer(player) {
         //в случае перезахода не перезаписываются данные игрока (запоминает что уже было выполнено ранее)
         if (this.playerInteractions.has(player.id)) {
@@ -45,11 +51,7 @@ class InteractionServer {
         });
 
         alt.log(`[Interaction] Игрок ${player.id} добавлен в таблицу`);
-        this.playerInteractions.forEach((value, key) => {
-            alt.log(`[Interaction] Игрок ${key}:`);
-            alt.log(`  active: ${Array.from(value.active).join(', ')}`);
-            alt.log(`  completed: ${Array.from(value.completed).join(', ')}`);
-        });
+        this.printAllplayersInteractionsState();
     }
 
     // При входе — подготовка сцены
@@ -63,8 +65,7 @@ class InteractionServer {
         
         const activeInteractions = Array.from(this.playerInteractions.get(player.id).active);
         alt.log(`[Interaction] activeInteractions ${activeInteractions}`);
-        // отправляем список доступных типов
-        //alt.emitClient(player, 'client:sceneDemo', Array.from(this.playerInteractions.get(player.id).active));
+        // говорит клиенту создать демо сцену только для список доступных типов (тех которые конкретный игрок еще не выполнил)
         alt.emitClient(player, 'client:sceneDemo', activeInteractions );
     }
 
@@ -72,24 +73,42 @@ class InteractionServer {
         const data = this.playerInteractions.get(player.id);
         if (!data) return;
 
-        // удаляем из активных
+        // удаляет из активных
         data.active.delete(type);
 
         // добавляем в выполненные
         data.completed.add(type);
 
         alt.log(`[Interaction] Игрок ${player.id} успешно завершил интеракцию (${type})`);
-        this.playerInteractions.forEach((value, key) => {
-            alt.log(`[Interaction] Игрок ${key}:`);
-            alt.log(`  active: ${Array.from(value.active).join(', ')}`);
-            alt.log(`  completed: ${Array.from(value.completed).join(', ')}`);
-        });
+        this.printAllplayersInteractionsState();
         // уведомление в чате игроку
         chat.send(player, `Успех! Вы завершили интеракцию: ${type}`);
+        alt.emitClient(player, 'client:delPoint', type);
     }
+    
+    //создание точки по команде клиента
+    createPoint(player, type){
+        const data = this.playerInteractions.get(player.id);
+        //проверка если у клиента уже есть актвиная точка такого типа
+        if (!data.active.has(type)) {
+        alt.emitClient(player, 'client:createPoint', type);
 
-    getPlayerInteraction(player) {
-        return this.playerInteractions.get(player.id);
+        data.active.add(type);  //Добавить в map игрока новую, только что созданную точку
+        data.completed.delete(type);    //удалить из map выполненых точек игрока прошлую точку (так как создана новая)
+        this.printAllplayersInteractionsState();
+        }
+        else{
+            chat.send(player, 'Нельзя использовать /create для уже существующей точки');
+            chat.send(player, 'Типы интераций: VEHICLE = 1, EXERCISE = 2, VENDING = 3');
+        }
+    }
+    //выводит текщее состояние инетрацкий для всех игроков на сервере
+    printAllplayersInteractionsState(){
+        this.playerInteractions.forEach((value, key) => {
+            alt.log(`[Interaction] Игрок ${key}:`);
+            alt.log(` active: ${Array.from(value.active).join(', ')}`);
+            alt.log(` completed: ${Array.from(value.completed).join(', ')}`);
+        });
     }
 }
 

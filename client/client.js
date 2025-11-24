@@ -284,6 +284,9 @@ class PointVisuals {
     constructor(position, config = {}) {
         this.position = position;
         this.config = config;
+
+        this.marker = null;
+        this.colshape = null;
     }
 
     create() {
@@ -302,6 +305,18 @@ class PointVisuals {
         );
 
         return { marker, colshape };
+    }
+
+    destroy() {
+        if (this.marker && this.marker.destroy) {
+            this.marker.destroy();
+            this.marker = null;
+        }
+
+        if (this.colshape && this.colshape.destroy) {
+            this.colshape.destroy();
+            this.colshape = null;
+        }
     }
 }
 
@@ -358,9 +373,17 @@ class Interaction {
             this.spawnPoints(activeInteractions);     //создание колшейпов и маркеров
             await this.preloadAnims();  //предзагрузка всех необходимых анимаций 
         });
+        //запрос с серввера на удаление точки (после успешного выполнения интеракции на клиенте)
+        alt.onServer('client:delPoint', (interactionType) => {
+            this.delPoint(interactionType);
+        });
+        //для создания точки по команде /create (с сервера)
+        alt.onServer('client:createPoint', (type) => {
+            this.createPoint(type);
+        });
 
-        alt.on('entityEnterColshape', (colshape, entity) => this.onEnter(colshape, entity));
-        alt.on('entityLeaveColshape', (colshape, entity) => this.onLeave(colshape, entity));
+        alt.on('entityEnterColshape', (colshape, entity) => this.handleEntityEnterColshape(colshape, entity));
+        alt.on('entityLeaveColshape', (colshape, entity) => this.handleEntityLeaveColshape(colshape, entity));
     }
     
     // метод для инициализации NotificationManager
@@ -385,6 +408,7 @@ class Interaction {
         await AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
     }
 
+    
     spawnPoints(activeInteractions) {
         //alt.log(`activeInteractions ${activeInteractions}`)
         this.interactionPoints.forEach((point, index) => {
@@ -404,8 +428,55 @@ class Interaction {
         alt.log(`Создано колшейпов: ${this.colshapes.length}`);
         alt.log(`Массив колшейпов:`, this.colshapes);
     }
+ 
+    delPoint(interactionType) {
+        // поиск индекса в массиве colshapes по interactionType
+        const index = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+
+        if (index === -1) {
+            alt.log(`Попытка удалить несуществующую точку: ${interactionType}`);    
+            return;
+        }
+    
+        const marker = this.markers[index];
+        const colshape = this.colshapes[index];
+
+        if (marker && marker.destroy) {
+            marker.destroy();
+            this.markers[index] = null;
+        }
+        if (colshape && colshape.destroy) {
+            colshape.destroy();
+            this.colshapes[index] = null;
+        }
+
+        alt.log(`Точка с interactionType ${interactionType} удалена.`);
+    }
+    //для создания точки по команде /create (с сервера)
+    createPoint(type) {
+        // поиск в конфигурации по типу из InteractionType
+        const pointData = this.interactionPoints.find(point => point.config.interactionType === type);
+    
+        if (!pointData) {
+            alt.log(`Неизвестный тип точки: ${type}`);
+            return;
+        }
+
+        const visuals = new PointVisuals(pointData.position, pointData.config).create();
+    
+        // Добавление дополнительных свойств для колшейпов
+        visuals.colshape.interactionType = pointData.config.interactionType;
+        visuals.colshape.pointIndex = this.colshapes.length; // новый индекс
+    
+        // добавление данных созданной точки в массивы
+        this.markers.push(visuals.marker);
+        this.colshapes.push(visuals.colshape);
+    
+        alt.log(`Создана точка типа ${type}`);
+    }
+
     //метод который вызывается при входе в колшейп
-    onEnter(colshape, entity) {
+    handleEntityEnterColshape(colshape, entity) {
         alt.log('Игрок вошел в колшейп');
         if (!(entity instanceof alt.Player)) return;
         if (!colshape.interactionType) return;  //если в будущем будут добавлены другие колшейпы
@@ -414,7 +485,7 @@ class Interaction {
         this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
     }
     //метод который вызывается при выходе из колшейпа
-    onLeave(colshape, entity) {
+    handleEntityLeaveColshape(colshape, entity) {
         if (!(entity instanceof alt.Player)) return;
         if (!this.currentInteraction) return;   //если в будущем будут добавлены другие колшейпы
 
@@ -445,6 +516,7 @@ class InteractionBase {
     updateInteraction() {}
     getInteractionText() { return ""; }
     
+    //общий метод для дебаунса от спама
     canProcessKeyPress(key) {
         // Проверяем дебаунс только для клавиши E (код 69 соответствует клавише E)
         if (key === 69) {
@@ -604,25 +676,7 @@ class HoldInteraction extends InteractionBase {
             }
             
             //устанавливает флаг что клавиша E нажата
-            this.isKeyEHeld = true;
-            
-            //проверка на уже запущенный прогресс
-            //если уже выполняется другой процесс прогресса, отменяем его (таких ситуаций не бывает в коде)
-/*
-            if (this.currentProgressPromise) {
-                alt.log('Прогресс уже выполняется, отменяем предыдущий');
-                // устанавливает флаг прерывания для текущего прогресса
-                this.cancelProgress();
-                // ожиадние завершения предыдущего промиса (асинхронная отмена)
-                try {
-                    // ожиадние завершения предыдущего прогресса, игнорируя ошибки
-                    await this.currentProgressPromise.catch(() => {});
-                    alt.log('Предыдущий прогресс завершен');
-                } catch (error) {
-                    alt.log(`Ошибка при ожидании предыдущего прогресса: ${error.message}`);
-                }
-            }
-*/            
+            this.isKeyEHeld = true;    
             //проверка, что WebView открыт и готов к отображению прогресса
             if (NotificationManager.getInstance().isWebViewOpen) {
                 //устанавливает флаг что процесс выполняется
@@ -640,8 +694,6 @@ class HoldInteraction extends InteractionBase {
                         alt.log('Прогресс завершен успешно');
                         drawNotification('Задача выполнена!');
                         alt.emitServer('client:succesHoldInteraction');    //передача на сервер информации об успешном завршении интракции
-                        // очистка, закрытие Webview
-                        this.stopInteraction();
                     })
                     //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
                     .catch((error) => {
@@ -658,7 +710,6 @@ class HoldInteraction extends InteractionBase {
                     })
                     //выполняется в любом случае - при успехе или ошибке
                     .finally(() => {
-
                         // сбрасывает ссылку на Promise чтобы разрешить новый запуск
                         this.currentProgressPromise = null;
                         alt.log('Промис прогресса очищен в finally');
