@@ -477,13 +477,29 @@ class Interaction {
 
     //метод который вызывается при входе в колшейп
     handleEntityEnterColshape(colshape, entity) {
-        alt.log('Игрок вошел в колшейп');
+
+        alt.log('Игрок вошел в колшейп, после проверки дистанции');
         if (!(entity instanceof alt.Player)) return;
         if (!colshape.interactionType) return;  //если в будущем будут добавлены другие колшейпы
-
+        if(!this.checkDistance(colshape)) return;   //проверка дистанции от читеров
         this.currentInteraction = this.createInteraction(colshape.interactionType, colshape.index); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
         this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
     }
+    
+    checkDistance(colshape){
+        const pointData = this.interactionPoints[colshape.pointIndex];
+        const distance = pointData.position.distanceTo(alt.Player.local.pos);
+        if(distance>3){
+            alt.log(`distance: ${distance}> 3`);
+            return false;
+        }
+        else{
+            alt.log('Проверка дистанции пройдена успешно');
+            return true;
+        }
+    }
+
+
     //метод который вызывается при выходе из колшейпа
     handleEntityLeaveColshape(colshape, entity) {
         if (!(entity instanceof alt.Player)) return;
@@ -1005,5 +1021,5 @@ class AnimationManager {
 }
 
 
-
+//this.currentLoadingPos.distanceTo(player.pos) < 15
 new Interaction(); 
