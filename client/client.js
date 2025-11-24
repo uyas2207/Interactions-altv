@@ -307,31 +307,12 @@ class PointVisuals {
 
 class Interaction {
     constructor() {
+        this.currentInteraction = null;
+        this.activeInteractions = null;
+        this.colshapes = [];    // массив существующих колшейпов
+        this.markers = [];      // массив существующих маркеров
 
-    this.currentProgressBar = null;
-    this.currentTapCounter = null;
-    this.currentPersistent = null;
-
-    this.keyPressHandler = null;
-    this.keyUpHandler = null;
-    this.inProgress = false;
-    this.colshapes = []; // массив для колшейпов
-    this.markers = []; // массив для маркеров
-
-    //управление асинхронными операциями
-    this.currentProgressPromise = null;
-    this.progressController = null;
-
-    //this.keyPressCooldown = new Map(); // Можно хранить cooldown для разных типов взаимодействий
-    this.keyEDebounceMs = 1500; // задержка между нажатиями
-    this.lastKeyEPressTime = 0;
-
-    this.isKeyEHeld = false;    //отслеживание состояния клавиши E
-
-    this.initializeNotificationManager();
-    this.init();
-
-    this.interactionPoints = [
+        this.interactionPoints = [
             {   //данные точки для взлома машины
                 position: new alt.Vector3(-1275.08, -1431.94, 3.47),
                 config: {
@@ -366,8 +347,22 @@ class Interaction {
                 }
             }
         ];
+
+        this.init();
     }
 
+    async init() {
+        this.initializeNotificationManager();
+
+        alt.onServer('client:sceneDemo', async (activeInteractions) => {
+            this.spawnPoints(activeInteractions);     //создание колшейпов и маркеров
+            await this.preloadAnims();  //предзагрузка всех необходимых анимаций 
+        });
+
+        alt.on('entityEnterColshape', (colshape, entity) => this.onEnter(colshape, entity));
+        alt.on('entityLeaveColshape', (colshape, entity) => this.onLeave(colshape, entity));
+    }
+    
     // метод для инициализации NotificationManager
     async initializeNotificationManager() {
         alt.log('1. Инициализация NotificationManager');
@@ -380,118 +375,76 @@ class Interaction {
         alt.log('1. NotificationManager инициализирован через Interaction');
     }
 
-    init(){
+    //предзагрузка всех необходимых анимаций 
+    async preloadAnims() {
+        // последовательная загрузка необходимых анимаций
+        await AnimationManager.loadAnimDict('mini@sprunk');
+        await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@base');
+        await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@idle_a');
+        await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@exit');
+        await AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
+    }
+
+    spawnPoints(activeInteractions) {
+        //alt.log(`activeInteractions ${activeInteractions}`)
+        this.interactionPoints.forEach((point, index) => {
+            if (activeInteractions.includes(point.config.interactionType)){
+            const visuals = new PointVisuals(point.position, point.config).create();
         
-        //для тестирования разных типов взаимодействий
-        alt.onServer('client:showNotification', () => {
-            //для 1 нажаия
-            /*
-            const notifId = NotificationManager.getInstance().showPersistent('Статус', 'Выполняется задача...');
-            this.singleTap(notifId);
-            */
-            /*
-            //прогрэсбар
-            NotificationManager.getInstance().showProgressBar('lockpick', 'Взлом замка', 0, '');
-            this.progressBar();
-            */
-            /*
-            // множественные нажатия (Упражнения)
-            const requiredTaps = 10;
-            NotificationManager.getInstance().showTapCounter('exercise', 'Упражнения', 0, requiredTaps, 'Быстро нажимайте E!');
-            this.multipleTaps(requiredTaps);
-            */
+            // добавление дополнительных свойств для колшейпов
+            visuals.colshape.interactionType = point.config.interactionType;
+            visuals.colshape.pointIndex = index; // для идентификации точки
+        
+            // добавление данных созданной точки в массивы
+            this.markers.push(visuals.marker);
+            this.colshapes.push(visuals.colshape);
+            }
         });
-
-        alt.onServer('client:sceneDemo', async () => {
-            this.interactionPoints.forEach((point, index) => {
-                const visuals = new PointVisuals(point.position, point.config).create();
-        
-                // добавление дополнительных свойств для колшейпов
-                visuals.colshape.interactionType = point.config.interactionType;
-                visuals.colshape.pointIndex = index; // для идентификации точки
-        
-                // добавление данных созданной точки в массивы
-                this.markers.push(visuals.marker);
-                this.colshapes.push(visuals.colshape);
-            });
-
-            alt.log(`Создано маркеров: ${this.markers.length}`);
-            alt.log(`Создано колшейпов: ${this.colshapes.length}`);
-            alt.log(`Массив колшейпов:`, this.colshapes);
-
-            // последовательная загрузка необходимых анимаций
-            await AnimationManager.loadAnimDict('mini@sprunk');
-            await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@base');
-            await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@idle_a');
-            await AnimationManager.loadAnimDict('amb@world_human_push_ups@male@exit');
-            await AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
-        });
-
-        
-        // обработка входа/выхода из колшейпов
-        alt.on('entityEnterColshape', this.startInteraction.bind(this));
-        alt.on('entityLeaveColshape', this.stopInteraction.bind(this));
+        alt.log(`Создано маркеров: ${this.markers.length}`);
+        alt.log(`Создано колшейпов: ${this.colshapes.length}`);
+        alt.log(`Массив колшейпов:`, this.colshapes);
     }
-
-    startInteraction(colshape, entity){
+    //метод который вызывается при входе в колшейп
+    onEnter(colshape, entity) {
+        alt.log('Игрок вошел в колшейп');
         if (!(entity instanceof alt.Player)) return;
+        if (!colshape.interactionType) return;  //если в будущем будут добавлены другие колшейпы
 
-        //проверка на случай если будут добавлены еще колшейпы
-        if (!colshape.interactionType) return;
-        const player = entity;
-        this.currentColshape = colshape; // Сохраняем текущий колшейп
-
-        switch(colshape.interactionType) {
-            case InteractionType.VEHICLE:            
-                alt.log(`InteractionType.VEHICLE`);
-                drawNotification('Взлом замка');
-                this.currentProgressBar = NotificationManager.getInstance().createProgressBar('lockpick', 'Взлом замка', 0, '');
-                this.progressBar();
-                break;
-                
-            case InteractionType.EXERCISE:
-                alt.log(`InteractionType.EXERCISE`);
-                drawNotification('Отжимания');
-                const requiredTaps = 10;
-                this.currentTapCounter = NotificationManager.getInstance().createTapCounter('exercise', 'Отжимания', 0, requiredTaps, 'Быстро нажимайте E!');
-                this.multipleTaps(requiredTaps);
-                break;
-                
-            case InteractionType.VENDING:
-                alt.log(`InteractionType.VENDING`);
-                drawNotification('Автомат');
-                this.currentPersistent = new PersistentNotification(NotificationManager.getInstance(), 'vending', 'Торговый автомат', 'Нажмите E чтобы купить напиток');
-                this.currentPersistent.show();
-                this.singleTap();
-                break;
-        }
-        
+        this.currentInteraction = this.createInteraction(colshape.interactionType, colshape.index); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
+        this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
     }
-
-    stopInteraction(colshape, entity){
-        //проверяем, что entity является игроком, а не другим типом сущности (транспорт, NPC и т.д.)
+    //метод который вызывается при выходе из колшейпа
+    onLeave(colshape, entity) {
         if (!(entity instanceof alt.Player)) return;
-        
-        //отменяет прогрессбар при выходе из колшейпа
-        if (this.currentProgressPromise) {
-            alt.log('Отмена прогресса из-за выхода из колшейпа');
-            // вызываем метод отмены прогресса, который установит флаг shouldStop
-            this.cancelProgress();
-        }
+        if (!this.currentInteraction) return;   //если в будущем будут добавлены другие колшейпы
 
-        // вызываем общий метод очистки для удаления обработчиков и сброса состояния
-        this.cleanup();
-
-        // если игрок покидает текущий активный колшейп
-        // сравниваем колшейп, который покидает игрок, с текущим активным колшейпом
-        if (this.currentColshape === colshape) {
-            // сбрасываем текущий активный колшейп, так как игрок вышел из него
-            this.currentColshape = null;
-            alt.log(`Игрок покинул зону взаимодействия`);
+        this.currentInteraction.stopInteraction();  //вызов логики отмены для конкретного типа взаимодействия
+        this.currentInteraction = null; 
+    }
+    //создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
+    createInteraction(type, index) {
+        const pointData = this.interactionPoints[index];
+        switch (type) {
+            case InteractionType.VEHICLE: return new HoldInteraction(pointData);
+            case InteractionType.EXERCISE: return new MultiTapInteraction(pointData);
+            case InteractionType.VENDING: return new SingleTapInteraction(pointData);
         }
     }
+}
 
-    // метод для обработки дебаунса (защиты от спама) нажатий клавиш
+//Шаблон для классов наследников
+class InteractionBase {
+    constructor(pointData) {
+        this.point = pointData;
+        this.keyEDebounceMs = 1500; // задержка между нажатиями
+        this.lastKeyEPressTime = 0;
+    }
+
+    startInteraction() {}
+    stopInteraction() {}
+    updateInteraction() {}
+    getInteractionText() { return ""; }
+    
     canProcessKeyPress(key) {
         // Проверяем дебаунс только для клавиши E (код 69 соответствует клавише E)
         if (key === 69) {
@@ -513,6 +466,112 @@ class Interaction {
         // Для других клавиш дебаунс не применяется - всегда разрешаем обработку
         return true;
     }
+    
+}
+
+class SingleTapInteraction extends InteractionBase {
+    startInteraction() {
+        this.notif = new PersistentNotification(NotificationManager.getInstance(), 'vending','Торговый автомат', 'Нажмите E чтобы купить напиток');     //создает и запоминает webview уведомление для 1 нажатия
+        this.notif.show();
+
+        this.handler = async (key) => {
+            if ((key !== 69)) return;
+            this.stopInteraction();
+            await AnimationManager.playVendingMachineAnimation();   // запуск анимации покупки в автомате
+            drawNotification('Задача выполнена!');
+            alt.emitServer('client:succesSingleTapInteraction');   //передача на сервер информации об успешном завршении интракции
+        };
+
+        alt.on('keydown', this.handler);
+        alt.log('Создан обработчик нажатия Е');
+    }
+
+    stopInteraction() {
+        //native.clearPedTasks(alt.Player.local.scriptID);
+
+        //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
+        if (this.handler) {
+            alt.off('keydown', this.handler);
+            this.handler = null;
+            alt.log('Обработчик keydown удален');
+        }
+
+        if (this.notif) {
+            this.notif.hide();
+            this.notif = null;
+        }
+    }
+
+    getInteractionText() { return "Нажмите E"; }
+}
+
+class MultiTapInteraction extends InteractionBase {
+    constructor(pointData) {
+        super(pointData);
+        this.required = 10;
+        this.counter = 0;
+    }
+
+    startInteraction() {
+        //отображение уведмоления
+        this.multipleTaps = NotificationManager.getInstance().createTapCounter('exercise', 'Отжимания', 0, this.required, 'Быстро нажимайте E!');
+        //логика при нажатии на кнопку
+        this.handler = async (key) => {
+            if (key !== 69) return; //игнорирует все кнопки кроме E
+            //дебаунс от спама
+            if (!super.canProcessKeyPress(key)) {
+                return;
+            }
+
+            this.counter++;
+            this.updateInteraction();   //метод для изменения текста уведомления
+            //анимация 1 отжимания (так как за 1 секунду делается только 1 отжимание)
+            native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@base' , 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
+            await wait(1000);
+            //анимация ожидания следующего отжимания (следущего нажатия E)
+            native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a' , 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
+
+            if (this.counter === this.required) {
+                this.stopInteraction();
+                native.taskPlayAnim( alt.Player.local.scriptID,'amb@world_human_push_ups@male@exit','exit',8.0,-8.0,-1,0,0,false,false,false );
+                drawNotification('Задача выполнена!');
+                alt.emitServer('client:succesMultiTapInteraction'); //передача на сервер информации об успешном завршении интракции
+            }
+        };
+        // регистрирует обработчик
+        alt.on('keydown', this.handler);
+        alt.log('Создан обработчик нажатия Е')
+    }
+
+    //метод для изменения текста уведомления
+    updateInteraction() {
+        this.multipleTaps.update(this.counter, `Осталось: ${this.required - this.counter} раз`);
+    }
+
+    stopInteraction() {
+        //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
+        if (this.handler) {
+            alt.off('keydown', this.handler);
+            this.handler = null;
+            alt.log('Обработчик keydown удален');
+        }
+
+        if (this.multipleTaps) {
+            this.multipleTaps.hide();
+            this.multipleTaps = null;
+        }
+    }
+
+    getInteractionText() { return "Быстро нажимайте E!"; }
+}
+
+class HoldInteraction extends InteractionBase {
+    constructor(pointData) {
+        super(pointData);
+        this.isKeyHeld = false;
+        this.progressPromise = null;
+        this.controller = null;
+    }
 
     //метод для отмены прогресса
     //прерывает выполнение runProgress
@@ -526,19 +585,9 @@ class Interaction {
     }
 
     // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
-   async progressBar(){      
-        // если уже существует обработчик keydown, удаляем его чтобы избежать дублирования (таких ситуаций не бывает в коде)
-        if (this.keyPressHandler) {
-            alt.off('keydown', this.keyPressHandler);
-            alt.log('Удален обработчик progressBar')
-        }
-        
-        // если уже существует обработчик keyup, удаляем его чтобы избежать дублирования (таких ситуаций не бывает в коде)
-        if (this.keyUpHandler) {
-            alt.off('keyup', this.keyUpHandler);
-            alt.log('Удален обработчик keyup progressBar')
-        }
-        
+   async startInteraction(){      
+        this.bar = NotificationManager.getInstance().createProgressBar('lockpick', 'Взлом замка', 0, "");
+
         // сбрасывает флаг выполнения процесса
         this.inProgress = false;
         // сбрасывает флаг зажатой клавиши E (важно при повторной активации)
@@ -555,11 +604,11 @@ class Interaction {
             }
             
             //устанавливает флаг что клавиша E нажата
-            //этот флаг будет использоваться в runProgress для определения отпущена ли клавиша
             this.isKeyEHeld = true;
             
             //проверка на уже запущенный прогресс
             //если уже выполняется другой процесс прогресса, отменяем его (таких ситуаций не бывает в коде)
+/*
             if (this.currentProgressPromise) {
                 alt.log('Прогресс уже выполняется, отменяем предыдущий');
                 // устанавливает флаг прерывания для текущего прогресса
@@ -573,7 +622,7 @@ class Interaction {
                     alt.log(`Ошибка при ожидании предыдущего прогресса: ${error.message}`);
                 }
             }
-            
+*/            
             //проверка, что WebView открыт и готов к отображению прогресса
             if (NotificationManager.getInstance().isWebViewOpen) {
                 //устанавливает флаг что процесс выполняется
@@ -589,9 +638,10 @@ class Interaction {
                     //обработка успешного завершения прогресса
                     .then(() => {
                         alt.log('Прогресс завершен успешно');
-                        drawNotification('Задача выполнена!');    
+                        drawNotification('Задача выполнена!');
+                        alt.emitServer('client:succesHoldInteraction');    //передача на сервер информации об успешном завршении интракции
                         // очистка, закрытие Webview
-                        this.cleanup();
+                        this.stopInteraction();
                     })
                     //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
                     .catch((error) => {
@@ -599,15 +649,16 @@ class Interaction {
                         if (error.message === 'Прерывание') {
                             alt.log('Прогресс прерван');
                             // сбрасывает прогрессбар в начальное состояние
-                            if (this.currentProgressBar){this.currentProgressBar.update(0, `Прогресс: 0%`);}
+                            this.updateInteraction(0);  //метод для изменения текста уведомления
+                            //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
+                            native.clearPedTasks(alt.Player.local.scriptID);
                             drawNotification('Процесс прерван!');
 
                         }
                     })
                     //выполняется в любом случае - при успехе или ошибке
                     .finally(() => {
-                        //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
-                        native.clearPedTasks(alt.Player.local.scriptID);
+
                         // сбрасывает ссылку на Promise чтобы разрешить новый запуск
                         this.currentProgressPromise = null;
                         alt.log('Промис прогресса очищен в finally');
@@ -636,7 +687,7 @@ class Interaction {
         alt.on('keyup', this.keyUpHandler);
         alt.log('Созданы обработчики progressBar');
     }
-    
+
     // основной метод выполнения прогресса (взлома)
     async runProgress() {
     alt.log('runProgress начал выполнение');
@@ -644,8 +695,10 @@ class Interaction {
     // цикл из 10 шагов прогресса (от 10% до 100%)
     for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
         // обнволение прогрессбара визуально
-        this.currentProgressBar.update( percentcounter / 10, `Прогресс: ${percentcounter * 10}%`);
-     
+        //this.currentProgressBar.update( percentcounter / 10, `Прогресс: ${percentcounter * 10}%`);
+        
+        this.updateInteraction(percentcounter);
+
         // ожидание 1 секунды с возможностью прерывания и очисткой обработчиков timeout и interval
         await new Promise((resolve, reject) => {
             // для проверки от множественного вызова resolve/reject
@@ -693,135 +746,42 @@ class Interaction {
     
     // финальное отображение после того как прогрессбар дошел до конца
     this.inProgress = false;
-    this.currentProgressBar.update(1, `Прогресс: 100%`);
+    //this.currentProgressBar.update(1, `Прогресс: 100%`);
     alt.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
 
     // задержка что бы игрок успел увидеть 100%
     await wait(500);
     }
 
-    singleTap() {
-    if (this.keyPressHandler) {
-        alt.off('keydown', this.keyPressHandler);
-        alt.log('Удален обработчик singleTap');
-    }
 
-    this.keyPressHandler = async (key) => {
-        if ((key !== 69) || (!this.canProcessKeyPress(key)) || (!NotificationManager.getInstance().isWebViewOpen)) return;
-
-        this.cleanup();
-
-        // запуск анимации покупки в автомате
-        await AnimationManager.playVendingMachineAnimation();
-
-        drawNotification('Задача выполнена!');
-    };
-
-    alt.on('keydown', this.keyPressHandler);
-    alt.log('Создан обработчик нажатия Е');
-    }
-
-    multipleTaps(requiredTaps){
-        
-        if (this.keyPressHandler) {
-            alt.off('keydown', this.keyPressHandler);
-            alt.log('Удален обработчик multipleTaps')
-        }
-
-        let pressDownCounter = 1;
-        // cоздает новый обработчик для клавиши E
-        this.keyPressHandler = async  (key) => {
-            //проверка на нажатие E и соблюдение всех необходимых условий для погрузки (если все условия соблюдены появляется WebView поэтому проверка на WebView) (можно добавить еще проверки на разрешенную модель авто если надо для защиты)
-            if ((key === 69) && (NotificationManager.getInstance().isWebViewOpen)) {
-                
-                //дебаунс от спама
-                if (!this.canProcessKeyPress(key)) {
-                 return;
-                }
-                
-                this.currentTapCounter.update( pressDownCounter, `Осталось: ${requiredTaps-pressDownCounter} раз`);
-                //анимация 1 отжимания (так как за 1 секунду делается только 1 отжимание)
-                native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@base' , 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
-                await wait(1000);
-                //анимация ожидания следующего отжимания (следущего нажатия E)
-                native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a' , 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
-
-                alt.log(`Нажали Е, i = ${pressDownCounter}`);
-
-                if (pressDownCounter === requiredTaps){
-                    this.cleanup();
-                    // анимация выхода из отжимания
-                    native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@exit' , 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
-                    drawNotification('Задача выполнена!');
-                }
-                pressDownCounter++;
-            }   
-        };
-
-        // регистрирует обработчик
-        alt.on('keydown', this.keyPressHandler);
-        alt.log('Создан обработчик нажатия Е')
-    }
-
-    cleanup() {
-        alt.log('Начало cleanup...');
-        //сброс всех активных анимаций
+    stopInteraction() {
         native.clearPedTasks(alt.Player.local.scriptID);
-        //отменяем текущий прогресс (для progressBar) при cleanup
-        if (this.currentProgressPromise) {
-            alt.log('Отмена прогресса в cleanup');
-            this.cancelProgress();
-            this.currentProgressPromise = null;
-        }
-        // снимаем обработчики клавиш
+
+        //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
         if (this.keyPressHandler) {
             alt.off('keydown', this.keyPressHandler);
-            this.keyPressHandler = null;
-            alt.log('Обработчик keydown удален');
+            alt.log('Удален обработчик keyPressHandler stopInteraction')
         }
+        
         if (this.keyUpHandler) {
             alt.off('keyup', this.keyUpHandler);
-            this.keyUpHandler = null;
-            alt.log('Обработчик keyup удален');
+            alt.log('Удален обработчик keyup stopInteraction')
         }
+        // вызывает метод, который установит флаг shouldStop для остановки runProgress
+        this.cancelProgress();
         
-        this.inProgress = false;
-        // ДОБАВЛЕНО: сбрасываем состояние клавиши
-        this.isKeyEHeld = false;
-
-        // закрываем активное уведомление, если оно есть
-        const notificationManager = NotificationManager.getInstance();
-
-        if (notificationManager.isInitialized && notificationManager.activeNotifications.size > 0) {
-            for (const [id, notification] of notificationManager.activeNotifications.entries()) {
-                switch (notification.type) {
-                    case 'persistent':
-                        this.currentPersistent.hide();
-                        this.currentPersistent = null;
-                        alt.log(`cleanup(): скрыт persistent (${id})`);
-                        break;
-
-                    case 'progress':
-                        this.currentProgressBar.hide();
-                        this.currentProgressBar = null;
-                        alt.log(`cleanup(): скрыт progress-bar (${id})`);
-                        break;
-
-                    case 'tapCounter':
-                        this.currentTapCounter.hide();
-                        this.currentTapCounter = null;
-                        alt.log(`cleanup(): скрыт tapCounter (${id})`);
-                        break;
-
-                    default:
-                        alt.log(`cleanup(): неизвестный тип уведомления — ${notification.type}`);
-                        break;
-                }
-            }
+        if (this.bar){
+            this.bar.hide();
         }
-
-        alt.log('cleanup(): завершён — все обработчики и уведомления очищены.');
+        //this.progressPromise = null;
     }
+
+//метод для изменения текста уведомления
+    updateInteraction(i) {
+        this.bar.update(i/10, `Прогресс: ${i*10}%`);
+    }
+
+    getInteractionText() { return "Удерживайте E"; }
 }
 
 class AnimationManager {
@@ -870,6 +830,7 @@ class AnimationManager {
 
     // метод для загрузки словаря анимаций
     static async loadAnimDict(dict) {
+        //если анимация уже есть 
         if (native.hasAnimDictLoaded(dict)) {
             return true;
         }
@@ -901,6 +862,7 @@ class AnimationManager {
                 await wait(20);
                 counter++;
             }
+            //если не получилось загрузить
             if (!native.hasModelLoaded(modelHash)) {
                 alt.log(`spawnProp: не удалось загрузить модель ${modelName}`);
                 return null;
@@ -946,6 +908,7 @@ class AnimationManager {
         return object;
     }
 
+    //удаляет проп после завршения анимации
     static deleteProp(object) {
         if (!object) return;
         if (native.doesEntityExist(object)) {
@@ -963,7 +926,7 @@ class AnimationManager {
         const vendingConfig = this.config.vendingMachine;
         const animConfig = vendingConfig.animations;
 
-        // Перемещаем игрока и задаём новую ориентацию
+        // Перемещает игрока и задаёт новую ориентацию
         native.freezeEntityPosition(player, true);
         native.setEntityCoordsNoOffset(player, vendingConfig.position.x, vendingConfig.position.y, vendingConfig.position.z, false, false, false);
         native.setEntityRotation(player, 0, 0, vendingConfig.position.rotZ, 2, true);
@@ -975,7 +938,7 @@ class AnimationManager {
             native.taskPlayAnim(ped, animConfig.dict, animConfig.use, 8.0, -8.0, -1, 0, 0, false, false, false);
             await wait(2200);
             
-            const drinkCan = await AnimationManager.spawnProp('ng_proc_sodacan_01a');
+            const drinkCan = await this.spawnProp('ng_proc_sodacan_01a');
             
             native.taskPlayAnim(ped, animConfig.dict, animConfig.drink, 8.0, -8.0, -1, 0, 0, false, false, false);
             await wait(1800);
@@ -990,4 +953,6 @@ class AnimationManager {
     }
 }
 
-new Interaction();
+
+
+new Interaction(); 
