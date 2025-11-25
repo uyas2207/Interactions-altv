@@ -225,7 +225,7 @@ class InteractionServer {
     alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interaction] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B \u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0446\u0438\u044E (").concat(type, ")"));
     this.printAllplayersInteractionsState();
     // уведомление в чате игроку
-    alt_chat__WEBPACK_IMPORTED_MODULE_1__.send(player, "\u0423\u0441\u043F\u0435\u0445! \u0412\u044B \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B\u0438 \u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0446\u0438\u044E: ".concat(type));
+    alt_chat__WEBPACK_IMPORTED_MODULE_1__.send(player, "\u0423\u0441\u043F\u0435\u0445! \u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430 \u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0446\u0438\u044F: ".concat(type));
     alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'client:delPoint', type);
   }
 

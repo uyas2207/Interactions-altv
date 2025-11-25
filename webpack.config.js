@@ -53,7 +53,8 @@ return [
           '@classes': path.resolve(__dirname, 'client/classes'),
           '@startClient': path.resolve(__dirname, 'client/startClient.js'),
           '@interactions': path.resolve(__dirname, 'client/classes/Interactions'),
-          '@notifications': path.resolve(__dirname, 'client/classes/Notifications')
+          '@notifications': path.resolve(__dirname, 'client/classes/Notifications'),
+          '@config': path.resolve(__dirname, 'client/config')
         }
       },
       externalsType: 'module',

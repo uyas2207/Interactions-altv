@@ -55,7 +55,7 @@ class InteractionServer {
         alt.log(`[Interaction] Игрок ${player.id} успешно завершил интеракцию (${type})`);
         this.printAllplayersInteractionsState();
         // уведомление в чате игроку
-        chat.send(player, `Успех! Вы завершили интеракцию: ${type}`);
+        chat.send(player, `Успех! Завершена интеракция: ${type}`);
         alt.emitClient(player, 'client:delPoint', type);
     }
     

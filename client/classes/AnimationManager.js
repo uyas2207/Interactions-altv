@@ -1,7 +1,13 @@
 import * as alt from 'alt-client';
 import * as native from "natives";
 
+import { animationConfig } from '@config/InteractionConfig.js';
+
 export class AnimationManager {
+
+    static config = animationConfig;
+    
+    /*
     static config = {
         // Настройки для спавна пропов
         propSettings: {
@@ -44,6 +50,7 @@ export class AnimationManager {
             }
         }
     };
+*/
 
     // метод для загрузки словаря анимаций
     static async loadAnimDict(dict) {

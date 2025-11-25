@@ -1,7 +1,4 @@
 import * as alt from 'alt-client';
-import * as native from "natives";
-
-//import { InteractionType } from './Consts.js';
 
 import { AnimationManager } from '@classes/AnimationManager.js';
 import { PointVisuals } from './classes/PointVisuals.js';
@@ -9,18 +6,7 @@ import { SingleTapInteraction } from '@interactions/SingleTapInteraction.js';
 import { MultiTapInteraction } from '@interactions/MultiTapInteraction.js';
 import { HoldInteraction } from '@interactions/HoldInteraction.js';
 import { NotificationManager } from '@notifications/NotificationManager.js';
-
-//для вызова уведомлений со стороны сервера
-alt.onServer('drawNotification', drawNotification);
-
-
-
-
-
-
-
-
-
+import { interactionPoints } from '@config/InteractionConfig.js';
 
 
 class Interaction {
@@ -30,6 +16,8 @@ class Interaction {
         this.colshapes = [];    // массив существующих колшейпов
         this.markers = [];      // массив существующих маркеров
 
+        this.interactionPoints = interactionPoints;
+/*
         this.interactionPoints = [
             {   //данные точки для взлома машины
                 position: new alt.Vector3(-1275.08, -1431.94, 3.47),
@@ -66,6 +54,7 @@ class Interaction {
             }
         ];
 
+*/        
         this.init();
     }
 

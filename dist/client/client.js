@@ -14,6 +14,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
 /* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
+/* harmony import */ var _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @config/InteractionConfig.js */ "./client/config/InteractionConfig.js");
 /* provided dependency */ var wait = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["wait"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
@@ -22,7 +23,53 @@ function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" 
 function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 
 
+
 class AnimationManager {
+  /*
+  static config = {
+      // Настройки для спавна пропов
+      propSettings: {
+          boneIndex: 71, // индекс кости правой руки
+          // настройки для разных моделей пропов
+          modelOffsets: {
+              'ng_proc_sodacan_01a': {
+                  offsetX: 0.12,
+                  offsetY: -0.07,
+                  offsetZ: -0.07,
+                  rotX: -70.0,
+                  rotY: 0.0,
+                  rotZ: 0.0
+              }
+          },
+          // общие настройки для attachEntityToEntity
+          attachSettings: {
+              p9: false,              // false обычный attach
+              useSoftPinning: true,   // мягкое прикрепление
+              collision: false,       // учитывать коллизии
+              isPed: true,            // объект прикреплён к педу
+              vertexIndex: 0,         // индекс вершины
+              fixedRot: true,         // фиксировать вращение
+              p15: 0                  // вроде как разеревный параметр который ничего не делает
+          }
+      },
+      
+      // настройки для анимации торгового автомата
+      vendingMachine: {
+          position: {
+              x: -1269.3890380859375,
+              y: -1428.19775390625,
+              z: 4.3421630859375,
+              rotZ: -51.023
+          },
+          animations: {
+              dict: 'mini@sprunk',
+              use: 'plyr_buy_drink_pt1',
+              drink: 'plyr_buy_drink_pt2'
+          }
+      }
+  };
+  */
+
   // метод для загрузки словаря анимаций
   static loadAnimDict(dict) {
     return _asyncToGenerator(function* () {
@@ -130,54 +177,7 @@ class AnimationManager {
     })();
   }
 }
-_defineProperty(AnimationManager, "config", {
-  // Настройки для спавна пропов
-  propSettings: {
-    boneIndex: 71,
-    // индекс кости правой руки
-    // настройки для разных моделей пропов
-    modelOffsets: {
-      'ng_proc_sodacan_01a': {
-        offsetX: 0.12,
-        offsetY: -0.07,
-        offsetZ: -0.07,
-        rotX: -70.0,
-        rotY: 0.0,
-        rotZ: 0.0
-      }
-    },
-    // общие настройки для attachEntityToEntity
-    attachSettings: {
-      p9: false,
-      // false обычный attach
-      useSoftPinning: true,
-      // мягкое прикрепление
-      collision: false,
-      // учитывать коллизии
-      isPed: true,
-      // объект прикреплён к педу
-      vertexIndex: 0,
-      // индекс вершины
-      fixedRot: true,
-      // фиксировать вращение
-      p15: 0 // вроде как разеревный параметр который ничего не делает
-    }
-  },
-  // настройки для анимации торгового автомата
-  vendingMachine: {
-    position: {
-      x: -1269.3890380859375,
-      y: -1428.19775390625,
-      z: 4.3421630859375,
-      rotZ: -51.023
-    },
-    animations: {
-      dict: 'mini@sprunk',
-      use: 'plyr_buy_drink_pt1',
-      drink: 'plyr_buy_drink_pt2'
-    }
-  }
-});
+_defineProperty(AnimationManager, "config", _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_2__.animationConfig);
 
 /***/ }),
 
@@ -1001,6 +1001,107 @@ class PointVisuals {
 
 /***/ }),
 
+/***/ "./client/config/InteractionConfig.js":
+/*!********************************************!*\
+  !*** ./client/config/InteractionConfig.js ***!
+  \********************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   animationConfig: () => (/* binding */ animationConfig),
+/* harmony export */   interactionPoints: () => (/* binding */ interactionPoints)
+/* harmony export */ });
+/* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
+/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
+
+var interactionPoints = [{
+  //данные точки для взлома машины
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1275.08, -1431.94, 3.47),
+  config: {
+    interactionType: InteractionType.VEHICLE,
+    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(241, 196, 15),
+    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
+    markerType: 1,
+    heightOffset: 1,
+    // + по координате z
+    radius: 1
+  }
+}, {
+  //данные точки для упражнений
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1273.76, -1427.74, 3.34),
+  config: {
+    interactionType: InteractionType.EXERCISE,
+    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(46, 204, 113),
+    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
+    markerType: 1,
+    heightOffset: 1,
+    // + по координате z
+    radius: 1
+  }
+}, {
+  //данные точки для автомата с колой
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1269.45, -1428.14, 3.34),
+  config: {
+    interactionType: InteractionType.VENDING,
+    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(52, 152, 219),
+    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
+    markerType: 1,
+    heightOffset: 1,
+    radius: 1
+  }
+}];
+var animationConfig = {
+  // Настройки для спавна пропов
+  propSettings: {
+    boneIndex: 71,
+    // индекс кости правой руки
+    // настройки для разных моделей пропов
+    modelOffsets: {
+      'ng_proc_sodacan_01a': {
+        offsetX: 0.12,
+        offsetY: -0.07,
+        offsetZ: -0.07,
+        rotX: -70.0,
+        rotY: 0.0,
+        rotZ: 0.0
+      }
+    },
+    // общие настройки для attachEntityToEntity
+    attachSettings: {
+      p9: false,
+      // false обычный attach
+      useSoftPinning: true,
+      // мягкое прикрепление
+      collision: false,
+      // учитывать коллизии
+      isPed: true,
+      // объект прикреплён к педу
+      vertexIndex: 0,
+      // индекс вершины
+      fixedRot: true,
+      // фиксировать вращение
+      p15: 0 // вроде как разеревный параметр который ничего не делает
+    }
+  },
+  // настройки для анимации торгового автомата
+  vendingMachine: {
+    position: {
+      x: -1269.3890380859375,
+      y: -1428.19775390625,
+      z: 4.3421630859375,
+      rotZ: -51.023
+    },
+    animations: {
+      dict: 'mini@sprunk',
+      use: 'plyr_buy_drink_pt1',
+      drink: 'plyr_buy_drink_pt2'
+    }
+  }
+};
+
+/***/ }),
+
 /***/ "./client/utilities/utilities.js":
 /*!***************************************!*\
   !*** ./client/utilities/utilities.js ***!
@@ -1019,6 +1120,10 @@ __webpack_require__.r(__webpack_exports__);
 function wait(ms) {
   return new Promise(resolve => alt_client__WEBPACK_IMPORTED_MODULE_0__.setTimeout(resolve, ms));
 }
+
+//для вызова уведомлений со стороны сервера
+//alt.onServer('drawNotification', drawNotification);
+
 //вызов гташных уведмолени с помощью нативок 
 function drawNotification(message) {
   var autoHide = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
@@ -1137,31 +1242,24 @@ var __webpack_exports__ = {};
   \*******************************/
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
-/* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
-/* harmony import */ var _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @classes/AnimationManager.js */ "./client/classes/AnimationManager.js");
-/* harmony import */ var _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./classes/PointVisuals.js */ "./client/classes/PointVisuals.js");
-/* harmony import */ var _interactions_SingleTapInteraction_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @interactions/SingleTapInteraction.js */ "./client/classes/Interactions/SingleTapInteraction.js");
-/* harmony import */ var _interactions_MultiTapInteraction_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @interactions/MultiTapInteraction.js */ "./client/classes/Interactions/MultiTapInteraction.js");
-/* harmony import */ var _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @interactions/HoldInteraction.js */ "./client/classes/Interactions/HoldInteraction.js");
-/* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
-/* provided dependency */ var drawNotification = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["drawNotification"];
+/* harmony import */ var _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @classes/AnimationManager.js */ "./client/classes/AnimationManager.js");
+/* harmony import */ var _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./classes/PointVisuals.js */ "./client/classes/PointVisuals.js");
+/* harmony import */ var _interactions_SingleTapInteraction_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @interactions/SingleTapInteraction.js */ "./client/classes/Interactions/SingleTapInteraction.js");
+/* harmony import */ var _interactions_MultiTapInteraction_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @interactions/MultiTapInteraction.js */ "./client/classes/Interactions/MultiTapInteraction.js");
+/* harmony import */ var _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @interactions/HoldInteraction.js */ "./client/classes/Interactions/HoldInteraction.js");
+/* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
+/* harmony import */ var _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @config/InteractionConfig.js */ "./client/config/InteractionConfig.js");
 /* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 
 
 
-//import { InteractionType } from './Consts.js';
 
 
 
 
 
-
-
-
-//для вызова уведомлений со стороны сервера
-alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('drawNotification', drawNotification);
 class Interaction {
   constructor() {
     this.currentInteraction = null;
@@ -1169,42 +1267,45 @@ class Interaction {
     this.colshapes = []; // массив существующих колшейпов
     this.markers = []; // массив существующих маркеров
 
-    this.interactionPoints = [{
-      //данные точки для взлома машины
-      position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1275.08, -1431.94, 3.47),
-      config: {
-        interactionType: InteractionType.VEHICLE,
-        color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(241, 196, 15),
-        scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
-        markerType: 1,
-        heightOffset: 1,
-        // + по координате z
-        radius: 1
-      }
-    }, {
-      //данные точки для упражнений
-      position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1273.76, -1427.74, 3.34),
-      config: {
-        interactionType: InteractionType.EXERCISE,
-        color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(46, 204, 113),
-        scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
-        markerType: 1,
-        heightOffset: 1,
-        // + по координате z
-        radius: 1
-      }
-    }, {
-      //данные точки для автомата с колой
-      position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1269.45, -1428.14, 3.34),
-      config: {
-        interactionType: InteractionType.VENDING,
-        color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(52, 152, 219),
-        scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
-        markerType: 1,
-        heightOffset: 1,
-        radius: 1
-      }
-    }];
+    this.interactionPoints = _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_7__.interactionPoints;
+    /*
+            this.interactionPoints = [
+                {   //данные точки для взлома машины
+                    position: new alt.Vector3(-1275.08, -1431.94, 3.47),
+                    config: {
+                        interactionType: InteractionType.VEHICLE,
+                        color: new alt.RGBA(241, 196, 15),
+                        scale: new alt.Vector3(1.5, 1.5, 1.5),
+                        markerType: 1,
+                        heightOffset: 1,    // + по координате z
+                        radius: 1
+                    }
+                },
+                {   //данные точки для упражнений
+                    position: new alt.Vector3(-1273.76, -1427.74, 3.34),
+                    config: {
+                        interactionType: InteractionType.EXERCISE,
+                        color: new alt.RGBA(46, 204, 113),
+                        scale: new alt.Vector3(1.5, 1.5, 1.5),
+                        markerType: 1,
+                        heightOffset: 1,    // + по координате z
+                        radius: 1
+                    }
+                },
+                {   //данные точки для автомата с колой
+                    position: new alt.Vector3(-1269.45, -1428.14, 3.34),
+                    config: {
+                        interactionType: InteractionType.VENDING,
+                        color: new alt.RGBA(52, 152, 219),
+                        scale: new alt.Vector3(1.5, 1.5, 1.5),
+                        markerType: 1,
+                        heightOffset: 1,
+                        radius: 1
+                    }
+                }
+            ];
+    
+    */
     this.init();
   }
   init() {
@@ -1238,7 +1339,7 @@ class Interaction {
     return _asyncToGenerator(function* () {
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log('1. Инициализация NotificationManager');
       // получает экземпляр Singleton (создается при первом вызове)
-      var notificationManager = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_7__.NotificationManager.getInstance();
+      var notificationManager = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_6__.NotificationManager.getInstance();
 
       //инициализирует WebView
       yield notificationManager.initialize();
@@ -1250,18 +1351,18 @@ class Interaction {
   preloadAnims() {
     return _asyncToGenerator(function* () {
       // последовательная загрузка необходимых анимаций
-      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_2__.AnimationManager.loadAnimDict('mini@sprunk');
-      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_2__.AnimationManager.loadAnimDict('amb@world_human_push_ups@male@base');
-      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_2__.AnimationManager.loadAnimDict('amb@world_human_push_ups@male@idle_a');
-      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_2__.AnimationManager.loadAnimDict('amb@world_human_push_ups@male@exit');
-      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_2__.AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
+      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__.AnimationManager.loadAnimDict('mini@sprunk');
+      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__.AnimationManager.loadAnimDict('amb@world_human_push_ups@male@base');
+      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__.AnimationManager.loadAnimDict('amb@world_human_push_ups@male@idle_a');
+      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__.AnimationManager.loadAnimDict('amb@world_human_push_ups@male@exit');
+      yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__.AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
     })();
   }
   spawnPoints(activeInteractions) {
     //alt.log(`activeInteractions ${activeInteractions}`)
     this.interactionPoints.forEach((point, index) => {
       if (activeInteractions.includes(point.config.interactionType)) {
-        var visuals = new _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_3__.PointVisuals(point.position, point.config).create();
+        var visuals = new _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_2__.PointVisuals(point.position, point.config).create();
 
         // добавление дополнительных свойств для колшейпов
         visuals.colshape.interactionType = point.config.interactionType;
@@ -1305,7 +1406,7 @@ class Interaction {
     }
     var pointData = this.interactionPoints[pointIndex]; // получение данных по индексу
 
-    var visuals = new _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_3__.PointVisuals(pointData.position, pointData.config).create();
+    var visuals = new _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_2__.PointVisuals(pointData.position, pointData.config).create();
 
     // Добавление дополнительных свойств для колшейпов
     visuals.colshape.interactionType = pointData.config.interactionType;
@@ -1351,11 +1452,11 @@ class Interaction {
     var pointData = this.interactionPoints[index];
     switch (type) {
       case InteractionType.VEHICLE:
-        return new _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_6__.HoldInteraction(pointData);
+        return new _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_5__.HoldInteraction(pointData);
       case InteractionType.EXERCISE:
-        return new _interactions_MultiTapInteraction_js__WEBPACK_IMPORTED_MODULE_5__.MultiTapInteraction(pointData);
+        return new _interactions_MultiTapInteraction_js__WEBPACK_IMPORTED_MODULE_4__.MultiTapInteraction(pointData);
       case InteractionType.VENDING:
-        return new _interactions_SingleTapInteraction_js__WEBPACK_IMPORTED_MODULE_4__.SingleTapInteraction(pointData);
+        return new _interactions_SingleTapInteraction_js__WEBPACK_IMPORTED_MODULE_3__.SingleTapInteraction(pointData);
     }
   }
 }

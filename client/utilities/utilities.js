@@ -4,6 +4,10 @@ import * as native from "natives";
 export function wait(ms){
     return new Promise(resolve => alt.setTimeout(resolve, ms));
 }
+
+//для вызова уведомлений со стороны сервера
+//alt.onServer('drawNotification', drawNotification);
+
 //вызов гташных уведмолени с помощью нативок 
 export function drawNotification(message, autoHide = true) {
     native.beginTextCommandThefeedPost('STRING');
