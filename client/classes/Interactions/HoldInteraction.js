@@ -9,7 +9,8 @@ export class HoldInteraction extends InteractionBase {
         super(pointData);
         this.isKeyHeld = false;
         this.progressPromise = null;
-        this.controller = null;
+        this.currentProgressPromise = null;
+        this.progressController = null;
     }
 
     //метод для отмены прогресса
@@ -36,10 +37,13 @@ export class HoldInteraction extends InteractionBase {
         this.keyPressHandler = async (key) => {
             //реагирует только на клавишу E
             if (key !== 69) return;
-            
             //дебаунс от спама - проверяем можно ли обработать это нажатие
             if (!this.canProcessKeyPress(key)) {
                 return; // если дебаунс активен, отменяет последующие действия
+            }
+            // если при нажатии на E уже запущен процесс взлома произойдет return
+            if (this.currentProgressPromise){
+                return;
             }
             
             //устанавливает флаг что клавиша E нажата

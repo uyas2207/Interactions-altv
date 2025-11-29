@@ -179,6 +179,7 @@ class Interaction {
         this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
     }
     
+    //проверка дистанции от читеров
     checkDistance(colshape){
         const pointData = this.interactionPoints[colshape.pointIndex];
         const distance = pointData.position.distanceTo(alt.Player.local.pos);
@@ -212,16 +213,4 @@ class Interaction {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-//this.currentLoadingPos.distanceTo(player.pos) < 15
 new Interaction(); 

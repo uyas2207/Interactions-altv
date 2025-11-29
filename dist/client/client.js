@@ -207,7 +207,8 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     super(pointData);
     this.isKeyHeld = false;
     this.progressPromise = null;
-    this.controller = null;
+    this.currentProgressPromise = null;
+    this.progressController = null;
   }
 
   //метод для отмены прогресса
@@ -237,10 +238,14 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
         var _ref = _asyncToGenerator(function* (key) {
           //реагирует только на клавишу E
           if (key !== 69) return;
-
           //дебаунс от спама - проверяем можно ли обработать это нажатие
           if (!_this.canProcessKeyPress(key)) {
             return; // если дебаунс активен, отменяет последующие действия
+          }
+          // если при нажатии на E уже запущен процесс взлома произойдет return
+          if (_this.currentProgressPromise) {
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.log("СРАБОТАЛА ПРОВЕРКА currentProgressPromise");
+            return;
           }
 
           //устанавливает флаг что клавиша E нажата
@@ -1427,6 +1432,8 @@ class Interaction {
     this.currentInteraction = this.createInteraction(colshape.interactionType, colshape.index); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
     this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
   }
+
+  //проверка дистанции от читеров
   checkDistance(colshape) {
     var pointData = this.interactionPoints[colshape.pointIndex];
     var distance = pointData.position.distanceTo(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.pos);
@@ -1460,8 +1467,6 @@ class Interaction {
     }
   }
 }
-
-//this.currentLoadingPos.distanceTo(player.pos) < 15
 new Interaction();
 })();
 

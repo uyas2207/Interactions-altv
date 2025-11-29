@@ -161,7 +161,7 @@
             }
         }
         
-        // ========== ПОСТОЯННЫЕ УВЕДОМЛЕНИЯ ==========
+        // ========== ПОСТОЯННОГО УВЕДОМЛЕНИЯ ==========
         
         // Показ постоянного уведомления
         window.showPersistentNotification = function(id, title, text) {
@@ -182,7 +182,7 @@
             hidePersistentNotificationInternal(id);
         };
         
-        // ========== ПРОГРЕСС-БАРЫ ==========
+        // ========== ПРОГРЕСС-БАР ==========
         
         window.showProgressBar = function(id, title, initialProgress = 0, text = '') {
             const notificationElement = createPersistentNotification(id, title, text, 'progress');
@@ -221,7 +221,7 @@
             hidePersistentNotification(id);
         };
         
-        // ========== СЧЕТЧИКИ НАЖАТИЙ ==========
+        // ========== СЧЕТЧИК НАЖАТИЙ ==========
         
         window.showTapCounter = function(id, title, currentTaps = 0, requiredTaps = 0, text = '') {
             const notificationElement = createPersistentNotification(id, title, text, 'tapCounter');
