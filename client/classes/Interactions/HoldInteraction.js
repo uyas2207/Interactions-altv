@@ -45,12 +45,12 @@ export class HoldInteraction extends InteractionBase {
                 .catch((error) => {
                     //преднамеренное прерывание
                     if (error.message === 'Прерывание') {
-                        alt.log('Прогресс прерван');
+                        alt.log('startInteraction Прогресс прерван');
                         // сбрасывает прогрессбар в начальное состояние
                         this.updateInteraction(0);  //метод для изменения текста уведомления
                         //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
                         native.clearPedTasks(alt.Player.local.scriptID);
-                        drawNotification('startInteraction Процесс прерван!');
+                        drawNotification('Процесс прерван!');
                     }
                 })
                 //выполняется в любом случае - при успехе или ошибке
@@ -150,8 +150,8 @@ export class HoldInteraction extends InteractionBase {
         }
         
         //флаг shouldStop для остановки runProgress
-        if(this.progressShouldStop){
-            this.progressShouldStop = false;
+        if(!this.progressShouldStop){
+            this.progressShouldStop = true;
         }
 
         if (this.bar){

@@ -198,12 +198,12 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
           .catch(error => {
             //преднамеренное прерывание
             if (error.message === 'Прерывание') {
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс прерван');
+              alt_client__WEBPACK_IMPORTED_MODULE_0__.log('startInteraction Прогресс прерван');
               // сбрасывает прогрессбар в начальное состояние
               _this.updateInteraction(0); //метод для изменения текста уведомления
               //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
               natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
-              drawNotification('startInteraction Процесс прерван!');
+              drawNotification('Процесс прерван!');
             }
           })
           //выполняется в любом случае - при успехе или ошибке
@@ -308,8 +308,8 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     }
 
     //флаг shouldStop для остановки runProgress
-    if (this.progressShouldStop) {
-      this.progressShouldStop = false;
+    if (!this.progressShouldStop) {
+      this.progressShouldStop = true;
     }
     if (this.bar) {
       this.bar.hide();
