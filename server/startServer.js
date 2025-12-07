@@ -3,7 +3,7 @@ import * as alt from 'alt-server';
 // Your chat resource module.
 import * as chat from 'alt:chat';
 
-import { ServerEvents } from './events/ServerEvents.js';
+import { ServerEvents } from './events/serverEvents.js';
 import { InteractionCommands } from './commands/interactionCommands.js';
 
 class InteractionServer {

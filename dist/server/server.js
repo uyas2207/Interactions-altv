@@ -29,9 +29,9 @@ class InteractionCommands {
 
 /***/ }),
 
-/***/ "./server/events/ServerEvents.js":
+/***/ "./server/events/serverEvents.js":
 /*!***************************************!*\
-  !*** ./server/events/ServerEvents.js ***!
+  !*** ./server/events/serverEvents.js ***!
   \***************************************/
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
@@ -172,7 +172,7 @@ var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
 /* harmony import */ var alt_chat__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! alt:chat */ "alt:chat");
-/* harmony import */ var _events_ServerEvents_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./events/ServerEvents.js */ "./server/events/ServerEvents.js");
+/* harmony import */ var _events_serverEvents_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./events/serverEvents.js */ "./server/events/serverEvents.js");
 /* harmony import */ var _commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./commands/interactionCommands.js */ "./server/commands/interactionCommands.js");
 /* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
 // alt:V built-in module that provides server-side API.
@@ -253,7 +253,7 @@ class InteractionServer {
   }
 }
 var interactionServer = new InteractionServer();
-_events_ServerEvents_js__WEBPACK_IMPORTED_MODULE_2__.ServerEvents.setupSystemEvents(interactionServer);
+_events_serverEvents_js__WEBPACK_IMPORTED_MODULE_2__.ServerEvents.setupSystemEvents(interactionServer);
 _commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_3__.InteractionCommands.register(interactionServer);
 })();
 

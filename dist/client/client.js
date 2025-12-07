@@ -25,51 +25,6 @@ function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = 
 
 
 class AnimationManager {
-  /*
-  static config = {
-      // Настройки для спавна пропов
-      propSettings: {
-          boneIndex: 71, // индекс кости правой руки
-          // настройки для разных моделей пропов
-          modelOffsets: {
-              'ng_proc_sodacan_01a': {
-                  offsetX: 0.12,
-                  offsetY: -0.07,
-                  offsetZ: -0.07,
-                  rotX: -70.0,
-                  rotY: 0.0,
-                  rotZ: 0.0
-              }
-          },
-          // общие настройки для attachEntityToEntity
-          attachSettings: {
-              p9: false,              // false обычный attach
-              useSoftPinning: true,   // мягкое прикрепление
-              collision: false,       // учитывать коллизии
-              isPed: true,            // объект прикреплён к педу
-              vertexIndex: 0,         // индекс вершины
-              fixedRot: true,         // фиксировать вращение
-              p15: 0                  // вроде как разеревный параметр который ничего не делает
-          }
-      },
-      
-      // настройки для анимации торгового автомата
-      vendingMachine: {
-          position: {
-              x: -1269.3890380859375,
-              y: -1428.19775390625,
-              z: 4.3421630859375,
-              rotZ: -51.023
-          },
-          animations: {
-              dict: 'mini@sprunk',
-              use: 'plyr_buy_drink_pt1',
-              drink: 'plyr_buy_drink_pt2'
-          }
-      }
-  };
-  */
-
   // метод для загрузки словаря анимаций
   static loadAnimDict(dict) {
     return _asyncToGenerator(function* () {
@@ -205,21 +160,8 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.InteractionBase {
   constructor(pointData) {
     super(pointData);
-    this.isKeyHeld = false;
-    this.progressPromise = null;
     this.currentProgressPromise = null;
-    this.progressController = null;
-  }
-
-  //метод для отмены прогресса
-  //прерывает выполнение runProgress
-  cancelProgress() {
-    // Проверяем, что progressController существует
-    if (this.progressController) {
-      // Устанавливаем флаг, который будет проверяться в runProgress для прерывания
-      this.progressController.shouldStop = true;
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс отменен через cancelProgress');
-    }
+    this.progressShouldStop = false;
   }
 
   // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
@@ -227,13 +169,6 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     var _this = this;
     return _asyncToGenerator(function* () {
       _this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', 'Взлом замка', 0, "");
-
-      // сбрасывает флаг выполнения процесса
-      _this.inProgress = false;
-      // сбрасывает флаг зажатой клавиши E (важно при повторной активации)
-      _this.isKeyEHeld = false;
-
-      // создает новый обработчик для клавиши E (нажатие)
       _this.keyPressHandler = /*#__PURE__*/function () {
         var _ref = _asyncToGenerator(function* (key) {
           //реагирует только на клавишу E
@@ -244,50 +179,39 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
           }
           // если при нажатии на E уже запущен процесс взлома произойдет return
           if (_this.currentProgressPromise) {
-            alt_client__WEBPACK_IMPORTED_MODULE_0__.log("СРАБОТАЛА ПРОВЕРКА currentProgressPromise");
             return;
           }
+          _this.progressShouldStop = false;
+          alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Запуск нового прогресса...');
+          //анимация для взлома
+          natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base', 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
 
-          //устанавливает флаг что клавиша E нажата
-          _this.isKeyEHeld = true;
-          //проверка, что WebView открыт и готов к отображению прогресса
-          if (_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().isWebViewOpen) {
-            //устанавливает флаг что процесс выполняется
-            _this.inProgress = true;
-            //создаем новый контроллер прогресса с флагом остановки
-            _this.progressController = {
-              shouldStop: false
-            };
-            alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Запуск нового прогресса...');
-            //анимация для взлома
-            natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base', 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
-            //создает и сохраняет Promise для отслеживания выполнения runProgress
-            _this.currentProgressPromise = _this.runProgress()
-            //обработка успешного завершения прогресса
-            .then(() => {
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс завершен успешно');
-              drawNotification('Задача выполнена!');
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesHoldInteraction'); //передача на сервер информации об успешном завршении интракции
-            })
-            //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка на зажатую E)
-            .catch(error => {
-              //преднамеренное прерывание
-              if (error.message === 'Прерывание') {
-                alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс прерван');
-                // сбрасывает прогрессбар в начальное состояние
-                _this.updateInteraction(0); //метод для изменения текста уведомления
-                //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
-                natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
-                drawNotification('Процесс прерван!');
-              }
-            })
-            //выполняется в любом случае - при успехе или ошибке
-            .finally(() => {
-              // сбрасывает ссылку на Promise чтобы разрешить новый запуск
-              _this.currentProgressPromise = null;
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Промис прогресса очищен в finally');
-            });
-          }
+          //создает и сохраняет Promise для отслеживания выполнения runProgress
+          _this.currentProgressPromise = _this.runProgress()
+          //обработка успешного завершения прогресса
+          .then(() => {
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс завершен успешно');
+            drawNotification('Задача выполнена!');
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesHoldInteraction'); //передача на сервер информации об успешном завршении интракции, сервер запомнит что игрок выполнил конкретную интеракцию и удале ее маркер и колшейп
+          })
+          //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка this.progressShouldStop = true на зажатую E)
+          .catch(error => {
+            //преднамеренное прерывание
+            if (error.message === 'Прерывание') {
+              alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс прерван');
+              // сбрасывает прогрессбар в начальное состояние
+              _this.updateInteraction(0); //метод для изменения текста уведомления
+              //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
+              natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
+              drawNotification('startInteraction Процесс прерван!');
+            }
+          })
+          //выполняется в любом случае - при успехе или ошибке
+          .finally(() => {
+            // сбрасывает ссылку на Promise чтобы разрешить новый запуск
+            _this.currentProgressPromise = null;
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Промис прогресса очищен в finally');
+          });
         });
         return function (_x) {
           return _ref.apply(this, arguments);
@@ -298,14 +222,8 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
       _this.keyUpHandler = key => {
         // игнорирует отпускание других клавиш
         if (key !== 69) return;
-
-        // сбрасывает флаг что клавиша E зажата
-        _this.isKeyEHeld = false;
-
-        // Если процесс выполняется
-        if (_this.inProgress && _this.progressController) {
-          // устанавливает флаг остановки для прерывания runProgress
-          _this.progressController.shouldStop = true;
+        if (_this.currentProgressPromise && !_this.progressShouldStop) {
+          _this.progressShouldStop = true;
           alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Клавиша E отпущена, установлен shouldStop');
         }
       };
@@ -322,12 +240,9 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     var _this2 = this;
     return _asyncToGenerator(function* () {
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log('runProgress начал выполнение');
-
       // цикл из 10 шагов прогресса (от 10% до 100%)
       var _loop = function* _loop(percentcounter) {
-        // обнволение прогрессбара визуально
-        //this.currentProgressBar.update( percentcounter / 10, `Прогресс: ${percentcounter * 10}%`);
-
+        // обнволение прогрессбара визуально  
         _this2.updateInteraction(percentcounter);
 
         // ожидание 1 секунды с возможностью прерывания и очисткой обработчиков timeout и interval
@@ -366,7 +281,7 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
           // Интервал который проверяет условия прерывания каждые 200ms
           var interval = alt_client__WEBPACK_IMPORTED_MODULE_0__.setInterval(() => {
             // Игрок отпустил клавишу -> Была запрошена остановка (shouldStop)
-            if (_this2.progressController.shouldStop) {
+            if (_this2.progressShouldStop) {
               safeReject(new Error('Прерывание'));
               alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0428\u0430\u0433 ".concat(percentcounter, " \u043F\u0440\u0435\u0440\u0432\u0430\u043D"));
             }
@@ -376,14 +291,7 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
       for (var percentcounter = 1; percentcounter <= 10; percentcounter++) {
         yield* _loop(percentcounter);
       }
-
-      // финальное отображение после того как прогрессбар дошел до конца
-      _this2.inProgress = false;
-      //this.currentProgressBar.update(1, `Прогресс: 100%`);
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
-
-      // задержка что бы игрок успел увидеть 100%
-      //await wait(500);
     })();
   }
   stopInteraction() {
@@ -398,12 +306,14 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
       alt_client__WEBPACK_IMPORTED_MODULE_0__.off('keyup', this.keyUpHandler);
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Удален обработчик keyup stopInteraction');
     }
-    // вызывает метод, который установит флаг shouldStop для остановки runProgress
-    this.cancelProgress();
+
+    //флаг shouldStop для остановки runProgress
+    if (this.progressShouldStop) {
+      this.progressShouldStop = false;
+    }
     if (this.bar) {
       this.bar.hide();
     }
-    //this.progressPromise = null;
   }
 
   //метод для изменения текста уведомления
@@ -1273,44 +1183,6 @@ class Interaction {
     this.markers = []; // массив существующих маркеров
 
     this.interactionPoints = _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_7__.interactionPoints;
-    /*
-            this.interactionPoints = [
-                {   //данные точки для взлома машины
-                    position: new alt.Vector3(-1275.08, -1431.94, 3.47),
-                    config: {
-                        interactionType: InteractionType.VEHICLE,
-                        color: new alt.RGBA(241, 196, 15),
-                        scale: new alt.Vector3(1.5, 1.5, 1.5),
-                        markerType: 1,
-                        heightOffset: 1,    // + по координате z
-                        radius: 1
-                    }
-                },
-                {   //данные точки для упражнений
-                    position: new alt.Vector3(-1273.76, -1427.74, 3.34),
-                    config: {
-                        interactionType: InteractionType.EXERCISE,
-                        color: new alt.RGBA(46, 204, 113),
-                        scale: new alt.Vector3(1.5, 1.5, 1.5),
-                        markerType: 1,
-                        heightOffset: 1,    // + по координате z
-                        radius: 1
-                    }
-                },
-                {   //данные точки для автомата с колой
-                    position: new alt.Vector3(-1269.45, -1428.14, 3.34),
-                    config: {
-                        interactionType: InteractionType.VENDING,
-                        color: new alt.RGBA(52, 152, 219),
-                        scale: new alt.Vector3(1.5, 1.5, 1.5),
-                        markerType: 1,
-                        heightOffset: 1,
-                        radius: 1
-                    }
-                }
-            ];
-    
-    */
     this.init();
   }
   init() {
