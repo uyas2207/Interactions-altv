@@ -3,21 +3,23 @@ import * as native from "natives";
 
 import { InteractionBase } from './InteractionBase.js';
 import { NotificationManager } from '@notifications/NotificationManager.js';
+import { intractionConfig } from '@config/IntractionConfig.js';
 
 
 export class MultiTapInteraction extends InteractionBase {
     constructor(pointData) {
         super(pointData);
-        this.required = 10;
+        //this.config.required = intractionConfig.multiTapInteraction.required;
         this.counter = 0;
+        this.config = intractionConfig.multiTapInteraction;
     }
 
     startInteraction() {
         //отображение уведмоления
-        this.multipleTaps = NotificationManager.getInstance().createTapCounter('exercise', 'Отжимания', 0, this.required, 'Быстро нажимайте E!');
+        this.multipleTaps = NotificationManager.getInstance().createTapCounter('exercise', this.config.title, 0, this.config.required, this.config.text);
         //логика при нажатии на кнопку
         this.handler = async (key) => {
-            if (key !== 69) return; //игнорирует все кнопки кроме E
+            if (key !== intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
             //дебаунс от спама
             if (!super.canProcessKeyPress(key)) {
                 return;
@@ -31,7 +33,7 @@ export class MultiTapInteraction extends InteractionBase {
             //анимация ожидания следующего отжимания (следущего нажатия E)
             native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a' , 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
 
-            if (this.counter === this.required) {
+            if (this.counter === this.config.required) {
                 this.stopInteraction();
                 native.taskPlayAnim( alt.Player.local.scriptID,'amb@world_human_push_ups@male@exit','exit',8.0,-8.0,-1,0,0,false,false,false );
                 drawNotification('Задача выполнена!');
@@ -45,7 +47,7 @@ export class MultiTapInteraction extends InteractionBase {
 
     //метод для изменения текста уведомления
     updateInteraction() {
-        this.multipleTaps.update(this.counter, `Осталось: ${this.required - this.counter} раз`);
+        this.multipleTaps.update(this.counter, `Осталось: ${this.config.required - this.counter} раз`);
     }
 
     stopInteraction() {

@@ -1,7 +1,7 @@
 import * as alt from 'alt-client';
 import * as native from "natives";
 
-import { animationConfig } from '@config/InteractionConfig.js';
+import { animationConfig } from '@config/AnimationConfig.js';
 
 export class AnimationManager {
 

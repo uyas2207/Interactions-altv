@@ -14,7 +14,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
 /* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
-/* harmony import */ var _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @config/InteractionConfig.js */ "./client/config/InteractionConfig.js");
+/* harmony import */ var _config_AnimationConfig_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @config/AnimationConfig.js */ "./client/config/AnimationConfig.js");
 /* provided dependency */ var wait = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["wait"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
@@ -132,7 +132,7 @@ class AnimationManager {
     })();
   }
 }
-_defineProperty(AnimationManager, "config", _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_2__.animationConfig);
+_defineProperty(AnimationManager, "config", _config_AnimationConfig_js__WEBPACK_IMPORTED_MODULE_2__.animationConfig);
 
 /***/ }),
 
@@ -150,9 +150,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
 /* harmony import */ var _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./InteractionBase.js */ "./client/classes/Interactions/InteractionBase.js");
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
+/* harmony import */ var _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @config/IntractionConfig.js */ "./client/config/IntractionConfig.js");
 /* provided dependency */ var drawNotification = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["drawNotification"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+
 
 
 
@@ -162,17 +164,19 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     super(pointData);
     this.currentProgressPromise = null;
     this.progressShouldStop = false;
+    this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.holdInteraction;
   }
 
   // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
   startInteraction() {
     var _this = this;
     return _asyncToGenerator(function* () {
-      _this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', 'Взлом замка', 0, "");
+      _this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', _this.config.title, 0, _this.config.text);
+      _this.updateInteraction(0);
       _this.keyPressHandler = /*#__PURE__*/function () {
         var _ref = _asyncToGenerator(function* (key) {
           //реагирует только на клавишу E
-          if (key !== 69) return;
+          if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.intractionKey) return;
           //дебаунс от спама - проверяем можно ли обработать это нажатие
           if (!_this.canProcessKeyPress(key)) {
             return; // если дебаунс активен, отменяет последующие действия
@@ -221,7 +225,7 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
       // Обработчик отпускания клавиши E
       _this.keyUpHandler = key => {
         // игнорирует отпускание других клавиш
-        if (key !== 69) return;
+        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.intractionKey) return;
         if (_this.currentProgressPromise && !_this.progressShouldStop) {
           _this.progressShouldStop = true;
           alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Клавиша E отпущена, установлен shouldStop');
@@ -338,6 +342,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   InteractionBase: () => (/* binding */ InteractionBase)
 /* harmony export */ });
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
+/* harmony import */ var _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @config/IntractionConfig.js */ "./client/config/IntractionConfig.js");
+
+
 
 //Шаблон для классов наследников
 class InteractionBase {
@@ -356,7 +363,7 @@ class InteractionBase {
   //общий метод для дебаунса от спама
   canProcessKeyPress(key) {
     // Проверяем дебаунс только для клавиши E (код 69 соответствует клавише E)
-    if (key === 69) {
+    if (key === _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_1__.intractionConfig.intractionKey) {
       // Получаем текущее время в миллисекундах
       var currentTime = Date.now();
       // Вычисляем сколько времени прошло с последнего нажатия клавиши E
@@ -393,6 +400,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
 /* harmony import */ var _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./InteractionBase.js */ "./client/classes/Interactions/InteractionBase.js");
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
+/* harmony import */ var _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @config/IntractionConfig.js */ "./client/config/IntractionConfig.js");
 /* provided dependency */ var wait = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["wait"];
 /* provided dependency */ var drawNotification = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["drawNotification"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -401,21 +409,23 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 
 
 
+
 class MultiTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.InteractionBase {
   constructor(pointData) {
     super(pointData);
-    this.required = 10;
+    //this.config.required = intractionConfig.multiTapInteraction.required;
     this.counter = 0;
+    this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.multiTapInteraction;
   }
   startInteraction() {
     var _superprop_getCanProcessKeyPress = () => super.canProcessKeyPress,
       _this = this;
     //отображение уведмоления
-    this.multipleTaps = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createTapCounter('exercise', 'Отжимания', 0, this.required, 'Быстро нажимайте E!');
+    this.multipleTaps = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createTapCounter('exercise', this.config.title, 0, this.config.required, this.config.text);
     //логика при нажатии на кнопку
     this.handler = /*#__PURE__*/function () {
       var _ref = _asyncToGenerator(function* (key) {
-        if (key !== 69) return; //игнорирует все кнопки кроме E
+        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
         //дебаунс от спама
         if (!_superprop_getCanProcessKeyPress().call(_this, key)) {
           return;
@@ -427,7 +437,7 @@ class MultiTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2
         yield wait(1000);
         //анимация ожидания следующего отжимания (следущего нажатия E)
         natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a', 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
-        if (_this.counter === _this.required) {
+        if (_this.counter === _this.config.required) {
           _this.stopInteraction();
           natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@exit', 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
           drawNotification('Задача выполнена!');
@@ -445,7 +455,7 @@ class MultiTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2
 
   //метод для изменения текста уведомления
   updateInteraction() {
-    this.multipleTaps.update(this.counter, "\u041E\u0441\u0442\u0430\u043B\u043E\u0441\u044C: ".concat(this.required - this.counter, " \u0440\u0430\u0437"));
+    this.multipleTaps.update(this.counter, "\u041E\u0441\u0442\u0430\u043B\u043E\u0441\u044C: ".concat(this.config.required - this.counter, " \u0440\u0430\u0437"));
   }
   stopInteraction() {
     //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
@@ -481,6 +491,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
 /* harmony import */ var _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @classes/AnimationManager.js */ "./client/classes/AnimationManager.js");
 /* harmony import */ var _notifications_PersistentNotification_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @notifications/PersistentNotification.js */ "./client/classes/Notifications/PersistentNotification.js");
+/* harmony import */ var _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @config/IntractionConfig.js */ "./client/config/IntractionConfig.js");
 /* provided dependency */ var drawNotification = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["drawNotification"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
@@ -489,14 +500,15 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 
 
 
+
 class SingleTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_1__.InteractionBase {
   startInteraction() {
     var _this = this;
-    this.notif = new _notifications_PersistentNotification_js__WEBPACK_IMPORTED_MODULE_4__.PersistentNotification(_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__.NotificationManager.getInstance(), 'vending', 'Торговый автомат', 'Нажмите E чтобы купить напиток'); //создает и запоминает webview уведомление для 1 нажатия
+    this.notif = new _notifications_PersistentNotification_js__WEBPACK_IMPORTED_MODULE_4__.PersistentNotification(_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__.NotificationManager.getInstance(), 'vending', _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.singleTapInteraction.title, _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.singleTapInteraction.text); //создает и запоминает webview уведомление для 1 нажатия
     this.notif.show();
     this.handler = /*#__PURE__*/function () {
       var _ref = _asyncToGenerator(function* (key) {
-        if (key !== 69) return;
+        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.intractionKey) return;
         _this.stopInteraction();
         yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_3__.AnimationManager.playVendingMachineAnimation(); // запуск анимации покупки в автомате
         drawNotification('Задача выполнена!');
@@ -916,56 +928,16 @@ class PointVisuals {
 
 /***/ }),
 
-/***/ "./client/config/InteractionConfig.js":
-/*!********************************************!*\
-  !*** ./client/config/InteractionConfig.js ***!
-  \********************************************/
+/***/ "./client/config/AnimationConfig.js":
+/*!******************************************!*\
+  !*** ./client/config/AnimationConfig.js ***!
+  \******************************************/
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   animationConfig: () => (/* binding */ animationConfig),
-/* harmony export */   interactionPoints: () => (/* binding */ interactionPoints)
+/* harmony export */   animationConfig: () => (/* binding */ animationConfig)
 /* harmony export */ });
-/* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
-/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
-
-var interactionPoints = [{
-  //данные точки для взлома машины
-  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1275.08, -1431.94, 3.47),
-  config: {
-    interactionType: InteractionType.VEHICLE,
-    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(241, 196, 15),
-    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
-    markerType: 1,
-    heightOffset: 1,
-    // + по координате z
-    radius: 1
-  }
-}, {
-  //данные точки для упражнений
-  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1273.76, -1427.74, 3.34),
-  config: {
-    interactionType: InteractionType.EXERCISE,
-    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(46, 204, 113),
-    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
-    markerType: 1,
-    heightOffset: 1,
-    // + по координате z
-    radius: 1
-  }
-}, {
-  //данные точки для автомата с колой
-  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1269.45, -1428.14, 3.34),
-  config: {
-    interactionType: InteractionType.VENDING,
-    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(52, 152, 219),
-    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
-    markerType: 1,
-    heightOffset: 1,
-    radius: 1
-  }
-}];
 var animationConfig = {
   // Настройки для спавна пропов
   propSettings: {
@@ -1014,6 +986,88 @@ var animationConfig = {
     }
   }
 };
+
+/***/ }),
+
+/***/ "./client/config/IntractionConfig.js":
+/*!*******************************************!*\
+  !*** ./client/config/IntractionConfig.js ***!
+  \*******************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   intractionConfig: () => (/* binding */ intractionConfig)
+/* harmony export */ });
+var intractionConfig = {
+  intractionKey: 69,
+  // конпка E
+  multiTapInteraction: {
+    title: 'Отжимания',
+    text: 'Быстро нажимайте E',
+    required: 10
+  },
+  singleTapInteraction: {
+    title: 'Торговый автомат',
+    text: 'Нажмите E чтобы купить напиток'
+  },
+  holdInteraction: {
+    title: 'Взлом замка',
+    text: 'Зажмите и удерживайте E'
+  }
+};
+
+/***/ }),
+
+/***/ "./client/config/PointsConfig.js":
+/*!***************************************!*\
+  !*** ./client/config/PointsConfig.js ***!
+  \***************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   interactionPoints: () => (/* binding */ interactionPoints)
+/* harmony export */ });
+/* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
+/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
+
+var interactionPoints = [{
+  //данные точки для взлома машины
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1275.08, -1431.94, 3.47),
+  config: {
+    interactionType: InteractionType.VEHICLE,
+    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(241, 196, 15),
+    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
+    markerType: 1,
+    heightOffset: 1,
+    // + по координате z
+    radius: 1
+  }
+}, {
+  //данные точки для упражнений
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1273.76, -1427.74, 3.34),
+  config: {
+    interactionType: InteractionType.EXERCISE,
+    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(46, 204, 113),
+    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
+    markerType: 1,
+    heightOffset: 1,
+    // + по координате z
+    radius: 1
+  }
+}, {
+  //данные точки для автомата с колой
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1269.45, -1428.14, 3.34),
+  config: {
+    interactionType: InteractionType.VENDING,
+    color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(52, 152, 219),
+    scale: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(1.5, 1.5, 1.5),
+    markerType: 1,
+    heightOffset: 1,
+    radius: 1
+  }
+}];
 
 /***/ }),
 
@@ -1163,7 +1217,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _interactions_MultiTapInteraction_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @interactions/MultiTapInteraction.js */ "./client/classes/Interactions/MultiTapInteraction.js");
 /* harmony import */ var _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @interactions/HoldInteraction.js */ "./client/classes/Interactions/HoldInteraction.js");
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
-/* harmony import */ var _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @config/InteractionConfig.js */ "./client/config/InteractionConfig.js");
+/* harmony import */ var _config_PointsConfig_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @config/PointsConfig.js */ "./client/config/PointsConfig.js");
 /* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
@@ -1182,7 +1236,7 @@ class Interaction {
     this.colshapes = []; // массив существующих колшейпов
     this.markers = []; // массив существующих маркеров
 
-    this.interactionPoints = _config_InteractionConfig_js__WEBPACK_IMPORTED_MODULE_7__.interactionPoints;
+    this.interactionPoints = _config_PointsConfig_js__WEBPACK_IMPORTED_MODULE_7__.interactionPoints;
     this.init();
   }
   init() {

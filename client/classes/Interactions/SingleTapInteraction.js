@@ -4,15 +4,15 @@ import { InteractionBase } from './InteractionBase.js';
 import { NotificationManager } from '@notifications/NotificationManager.js';
 import { AnimationManager } from '@classes/AnimationManager.js';
 import { PersistentNotification } from '@notifications/PersistentNotification.js';
-
+import { intractionConfig } from '@config/IntractionConfig.js';
 
 export class SingleTapInteraction extends InteractionBase {
     startInteraction() {
-        this.notif = new PersistentNotification(NotificationManager.getInstance(), 'vending','Торговый автомат', 'Нажмите E чтобы купить напиток');     //создает и запоминает webview уведомление для 1 нажатия
+        this.notif = new PersistentNotification(NotificationManager.getInstance(), 'vending', intractionConfig.singleTapInteraction.title, intractionConfig.singleTapInteraction.text);     //создает и запоминает webview уведомление для 1 нажатия
         this.notif.show();
 
         this.handler = async (key) => {
-            if ((key !== 69)) return;
+            if ((key !== intractionConfig.intractionKey)) return;
             this.stopInteraction();
             await AnimationManager.playVendingMachineAnimation();   // запуск анимации покупки в автомате
             drawNotification('Задача выполнена!');

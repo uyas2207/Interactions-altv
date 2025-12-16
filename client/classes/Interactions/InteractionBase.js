@@ -1,4 +1,6 @@
 import * as alt from 'alt-client';
+import { intractionConfig } from '@config/IntractionConfig.js';
+
 //Шаблон для классов наследников
 export class InteractionBase {
     constructor(pointData) {
@@ -15,7 +17,7 @@ export class InteractionBase {
     //общий метод для дебаунса от спама
     canProcessKeyPress(key) {
         // Проверяем дебаунс только для клавиши E (код 69 соответствует клавише E)
-        if (key === 69) {
+        if (key === intractionConfig.intractionKey) {
             // Получаем текущее время в миллисекундах
             const currentTime = Date.now();
             // Вычисляем сколько времени прошло с последнего нажатия клавиши E

@@ -6,7 +6,7 @@ import { SingleTapInteraction } from '@interactions/SingleTapInteraction.js';
 import { MultiTapInteraction } from '@interactions/MultiTapInteraction.js';
 import { HoldInteraction } from '@interactions/HoldInteraction.js';
 import { NotificationManager } from '@notifications/NotificationManager.js';
-import { interactionPoints } from '@config/InteractionConfig.js';
+import { interactionPoints } from '@config/PointsConfig.js';
 
 
 class Interaction {

@@ -3,13 +3,31 @@ import * as alt from 'alt-server';
 // Your chat resource module.
 import * as chat from 'alt:chat';
 
-import { ServerEvents } from './events/serverEvents.js';
 import { InteractionCommands } from './commands/interactionCommands.js';
 
 class InteractionServer {
     constructor() {
         this.playerInteractions = new Map();
-        //this.init();
+        this.init();
+    }
+
+    init(){
+        alt.on('playerConnect', async (player) => {
+            this.initializePlayer(player);
+            this.demonstrationScene(player);
+        });
+       
+        alt.onClient('client:succesSingleTapInteraction', (player) => {
+            this.completeInteraction(player, InteractionType.VENDING);
+        });
+                
+        alt.onClient('client:succesMultiTapInteraction', (player) => {
+            this.completeInteraction(player, InteractionType.EXERCISE);
+        });
+                
+        alt.onClient('client:succesHoldInteraction', (player) => {
+            this.completeInteraction(player, InteractionType.VEHICLE);
+        });
     }
 
     // создание записи о игроке
@@ -86,5 +104,4 @@ class InteractionServer {
 }
 
 const interactionServer = new InteractionServer();
-ServerEvents.setupSystemEvents(interactionServer);
 InteractionCommands.register(interactionServer);

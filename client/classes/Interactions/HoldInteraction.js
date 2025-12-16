@@ -3,22 +3,24 @@ import * as native from "natives";
 
 import { InteractionBase } from './InteractionBase.js';
 import { NotificationManager } from '@notifications/NotificationManager.js';
+import { intractionConfig } from '@config/IntractionConfig.js';
 
 export class HoldInteraction extends InteractionBase {
     constructor(pointData) {
         super(pointData);
         this.currentProgressPromise = null;
         this.progressShouldStop = false;
+        this.config = intractionConfig.holdInteraction;
     }
 
 
     // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
     async startInteraction(){                
-        this.bar = NotificationManager.getInstance().createProgressBar('lockpick', 'Взлом замка', 0, "");
-
+        this.bar = NotificationManager.getInstance().createProgressBar('lockpick', this.config.title, 0, this.config.text);
+        this.updateInteraction(0);
         this.keyPressHandler = async (key) => {
             //реагирует только на клавишу E
-            if (key !== 69) return;
+            if (key !== intractionConfig.intractionKey) return;
             //дебаунс от спама - проверяем можно ли обработать это нажатие
             if (!this.canProcessKeyPress(key)) {
                 return; // если дебаунс активен, отменяет последующие действия
@@ -65,7 +67,7 @@ export class HoldInteraction extends InteractionBase {
         // Обработчик отпускания клавиши E
         this.keyUpHandler = (key) => {
             // игнорирует отпускание других клавиш
-            if (key !== 69) return;
+            if (key !== intractionConfig.intractionKey) return;
             if(this.currentProgressPromise && !this.progressShouldStop){
                 this.progressShouldStop = true;
                 alt.log('Клавиша E отпущена, установлен shouldStop');

@@ -29,46 +29,6 @@ class InteractionCommands {
 
 /***/ }),
 
-/***/ "./server/events/serverEvents.js":
-/*!***************************************!*\
-  !*** ./server/events/serverEvents.js ***!
-  \***************************************/
-/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   ServerEvents: () => (/* binding */ ServerEvents)
-/* harmony export */ });
-/* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
-/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
-
-class ServerEvents {
-  static setupSystemEvents(interactionServer) {
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', /*#__PURE__*/function () {
-      var _ref = _asyncToGenerator(function* (player) {
-        interactionServer.initializePlayer(player);
-        interactionServer.demonstrationScene(player);
-      });
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }());
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesSingleTapInteraction', player => {
-      interactionServer.completeInteraction(player, InteractionType.VENDING);
-    });
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesMultiTapInteraction', player => {
-      interactionServer.completeInteraction(player, InteractionType.EXERCISE);
-    });
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesHoldInteraction', player => {
-      interactionServer.completeInteraction(player, InteractionType.VEHICLE);
-    });
-  }
-}
-
-/***/ }),
-
 /***/ "./shared/Consts.js":
 /*!**************************!*\
   !*** ./shared/Consts.js ***!
@@ -172,19 +132,40 @@ var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
 /* harmony import */ var alt_chat__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! alt:chat */ "alt:chat");
-/* harmony import */ var _events_serverEvents_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./events/serverEvents.js */ "./server/events/serverEvents.js");
-/* harmony import */ var _commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./commands/interactionCommands.js */ "./server/commands/interactionCommands.js");
+/* harmony import */ var _commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./commands/interactionCommands.js */ "./server/commands/interactionCommands.js");
 /* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 // alt:V built-in module that provides server-side API.
 
 // Your chat resource module.
 
 
-
 class InteractionServer {
   constructor() {
     this.playerInteractions = new Map();
-    //this.init();
+    this.init();
+  }
+  init() {
+    var _this = this;
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', /*#__PURE__*/function () {
+      var _ref = _asyncToGenerator(function* (player) {
+        _this.initializePlayer(player);
+        _this.demonstrationScene(player);
+      });
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesSingleTapInteraction', player => {
+      this.completeInteraction(player, InteractionType.VENDING);
+    });
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesMultiTapInteraction', player => {
+      this.completeInteraction(player, InteractionType.EXERCISE);
+    });
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesHoldInteraction', player => {
+      this.completeInteraction(player, InteractionType.VEHICLE);
+    });
   }
 
   // создание записи о игроке
@@ -253,7 +234,6 @@ class InteractionServer {
   }
 }
 var interactionServer = new InteractionServer();
-_events_serverEvents_js__WEBPACK_IMPORTED_MODULE_2__.ServerEvents.setupSystemEvents(interactionServer);
-_commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_3__.InteractionCommands.register(interactionServer);
+_commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_2__.InteractionCommands.register(interactionServer);
 })();
 
