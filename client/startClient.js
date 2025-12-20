@@ -33,8 +33,18 @@ class Interaction {
         });
         //для создания точки по команде /create (с сервера)
         alt.onServer('client:createPoint', (type) => {
-            this.createPoint(type);
+            this.spawnPoints(type);
+            //this.createPoint(type);
         });
+        
+        alt.onServer('client:checkDistanceSuccess', (interactionType) => {
+        // поиск индекса в массиве colshapes по interactionType
+        const pointIndex = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+
+        this.currentInteraction = this.createInteraction(interactionType, pointIndex);  //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
+        this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+        });
+
 
         alt.on('entityEnterColshape', (colshape, entity) => this.handleEntityEnterColshape(colshape, entity));
         alt.on('entityLeaveColshape', (colshape, entity) => this.handleEntityLeaveColshape(colshape, entity));
@@ -67,6 +77,7 @@ class Interaction {
         //alt.log(`activeInteractions ${activeInteractions}`)
         this.interactionPoints.forEach((point, index) => {
             if (activeInteractions.includes(point.config.interactionType)){
+                alt.log(`point: ${JSON.stringify(point)}, index: ${JSON.stringify(index)}`);
             const visuals = new PointVisuals(point.position, point.config).create();
         
             // добавление дополнительных свойств для колшейпов
@@ -83,30 +94,7 @@ class Interaction {
         alt.log(`Массив колшейпов:`, this.colshapes);
     }
  
-    delPoint(interactionType) {
-        // поиск индекса в массиве colshapes по interactionType
-        const index = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
-
-        if (index === -1) {
-            alt.log(`Попытка удалить несуществующую точку: ${interactionType}`);    
-            return;
-        }
-    
-        const marker = this.markers[index];
-        const colshape = this.colshapes[index];
-
-        if (marker && marker.destroy) {
-            marker.destroy();
-            this.markers[index] = null;
-        }
-        if (colshape && colshape.destroy) {
-            colshape.destroy();
-            this.colshapes[index] = null;
-        }
-
-        alt.log(`Точка с interactionType ${interactionType} удалена.`);
-    }
-    //для создания точки по команде /create (с сервера)
+        //для создания точки по команде /create (с сервера)
     createPoint(type) {
         //поиск по инедексу 
         const pointIndex = this.interactionPoints.findIndex(point => point.config.interactionType === type);
@@ -131,19 +119,42 @@ class Interaction {
         alt.log(`Создана точка типа ${type}`);
     }
 
+    delPoint(interactionType) {
+        // поиск индекса в массиве colshapes по interactionType
+        const index = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+
+        if (index === -1) {
+            alt.log(`Попытка удалить несуществующую точку: ${interactionType}`);    
+            return;
+        }
+    
+        const marker = this.markers[index];
+        const colshape = this.colshapes[index];
+
+        if (marker && marker.destroy) {
+            marker.destroy();
+            this.markers[index] = null;
+        }
+        if (colshape && colshape.destroy) {
+            colshape.destroy();
+            this.colshapes[index] = null;
+        }
+
+        alt.log(`Точка с interactionType ${interactionType} удалена.`);
+    }
+
+
     //метод который вызывается при входе в колшейп
     handleEntityEnterColshape(colshape, entity) {
         if (!(entity instanceof alt.Player)) return;
         if (!colshape.interactionType) return;  //если в будущем будут добавлены другие колшейпы
-        if(!this.checkDistance(colshape)) return;   //проверка дистанции от читеров
-        
-        this.currentInteraction = this.createInteraction(colshape.interactionType, colshape.index); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
-        this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+        alt.emitServer('client:checkDistance', colshape.interactionType);  //проверка дистанции от читеров на сервере
     }
     
     //проверка дистанции от читеров
     checkDistance(colshape){
         const pointData = this.interactionPoints[colshape.pointIndex];
+        alt.log(`pointData: ${JSON.stringify(pointData)}, colshape.pointIndex ${colshape.pointIndex}`);
         const distance = pointData.position.distanceTo(alt.Player.local.pos);
         if(distance>3){
             alt.log(`distance: ${distance}> 3`);

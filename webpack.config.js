@@ -72,8 +72,12 @@ return [
       plugins: [
         new webpack.ProvidePlugin({
           InteractionType: [
-            path.resolve(__dirname, 'shared/Consts.js'),
+            path.resolve(__dirname, 'shared/Shared.js'),
             'InteractionType'
+          ],
+          pointsCoords: [
+            path.resolve(__dirname, 'shared/Shared.js'),
+            'pointsCoords'
           ],
           //глобальные функции из файла utilities.js
           wait: [
@@ -125,9 +129,13 @@ return [
       plugins: [
         new webpack.ProvidePlugin({
           InteractionType: [
-            path.resolve(__dirname, 'shared/Consts.js'),
+            path.resolve(__dirname, 'shared/Shared.js'),
             'InteractionType'
-          ]
+          ],
+          pointsCoords: [
+            path.resolve(__dirname, 'shared/Shared.js'),
+            'pointsCoords'
+          ],
         }),
       ],
     

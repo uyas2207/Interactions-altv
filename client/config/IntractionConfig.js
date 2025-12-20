@@ -4,7 +4,7 @@ export const intractionConfig = {
     multiTapInteraction: {
         title: 'Отжимания',
         text: 'Быстро нажимайте E',
-        required: 10
+        required: 10    // необходимое количество нажатий для завершения интеракции
     },
     singleTapInteraction: {
         title: 'Торговый автомат',

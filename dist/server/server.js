@@ -29,20 +29,38 @@ class InteractionCommands {
 
 /***/ }),
 
-/***/ "./shared/Consts.js":
+/***/ "./shared/Shared.js":
 /*!**************************!*\
-  !*** ./shared/Consts.js ***!
+  !*** ./shared/Shared.js ***!
   \**************************/
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   InteractionType: () => (/* binding */ InteractionType)
+/* harmony export */   InteractionType: () => (/* binding */ InteractionType),
+/* harmony export */   pointsCoords: () => (/* binding */ pointsCoords)
 /* harmony export */ });
 var InteractionType = {
   VEHICLE: 1,
   EXERCISE: 2,
   VENDING: 3
+};
+var pointsCoords = {
+  [InteractionType.VEHICLE]: {
+    x: -1275.08,
+    y: -1431.94,
+    z: 3.47
+  },
+  [InteractionType.EXERCISE]: {
+    x: -1273.76,
+    y: -1427.74,
+    z: 3.34
+  },
+  [InteractionType.VENDING]: {
+    x: -1269.45,
+    y: -1428.14,
+    z: 3.34
+  }
 };
 
 /***/ }),
@@ -133,7 +151,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
 /* harmony import */ var alt_chat__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! alt:chat */ "alt:chat");
 /* harmony import */ var _commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./commands/interactionCommands.js */ "./server/commands/interactionCommands.js");
-/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
+/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["InteractionType"];
+/* provided dependency */ var pointsCoords = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["pointsCoords"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 // alt:V built-in module that provides server-side API.
@@ -141,9 +160,14 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 // Your chat resource module.
 
 
+//import { interactionPoints } from '../client/config/PointsConfig.js';
+
 class InteractionServer {
   constructor() {
     this.playerInteractions = new Map();
+
+    //this.interactionPoints = interactionPoints;
+
     this.init();
   }
   init() {
@@ -166,6 +190,9 @@ class InteractionServer {
     alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesHoldInteraction', player => {
       this.completeInteraction(player, InteractionType.VEHICLE);
     });
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:checkDistance', (player, interactionType) => {
+      this.checkDistance(player, interactionType);
+    });
   }
 
   // создание записи о игроке
@@ -178,7 +205,7 @@ class InteractionServer {
       active: new Set([InteractionType.VEHICLE, InteractionType.EXERCISE, InteractionType.VENDING]),
       completed: new Set()
     });
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interaction] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u0432 \u0442\u0430\u0431\u043B\u0438\u0446\u0443"));
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u0432 \u0442\u0430\u0431\u043B\u0438\u0446\u0443"));
     this.printAllplayersInteractionsState();
   }
 
@@ -190,7 +217,7 @@ class InteractionServer {
       this.vehicleCreated = true;
     }
     var activeInteractions = Array.from(this.playerInteractions.get(player.id).active);
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interaction] activeInteractions ".concat(activeInteractions));
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] activeInteractions ".concat(activeInteractions));
     // говорит клиенту создать демо сцену только для списка доступных типов (тех которые конкретный игрок еще не выполнил)
     alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'client:sceneDemo', activeInteractions);
   }
@@ -203,7 +230,7 @@ class InteractionServer {
 
     // добавляем в выполненные
     data.completed.add(type);
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interaction] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B \u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0446\u0438\u044E (").concat(type, ")"));
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B \u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0446\u0438\u044E (").concat(type, ")"));
     this.printAllplayersInteractionsState();
     // уведомление в чате игроку
     alt_chat__WEBPACK_IMPORTED_MODULE_1__.send(player, "\u0423\u0441\u043F\u0435\u0445! \u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430 \u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0446\u0438\u044F: ".concat(type));
@@ -224,10 +251,28 @@ class InteractionServer {
       alt_chat__WEBPACK_IMPORTED_MODULE_1__.send(player, 'Типы интераций: VEHICLE = 1, EXERCISE = 2, VENDING = 3');
     }
   }
+  checkDistance(player, interactionType) {
+    // Получает координаты по типу взаимодействия
+    var pointData = pointsCoords[interactionType];
+    if (!pointData) {
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u041A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B \u0434\u043B\u044F \u0442\u0438\u043F\u0430 ".concat(interactionType));
+      return;
+    }
+    var pointPos = new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3(pointData.x, pointData.y, pointData.z);
+    var distance = player.pos.distanceTo(pointPos);
+    if (distance > 3) {
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u0430\u043B\u0435\u043A\u043E \u043E\u0442 \u0442\u043E\u0447\u043A\u0438. distance: ").concat(distance, "> 3"));
+      return;
+    } else {
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u043F\u0440\u043E\u0448\u0435\u043B \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443 \u0434\u0438\u0441\u0442\u0430\u043D\u0446\u0438\u0438. distance = ").concat(distance, "m"));
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'client:checkDistanceSuccess', interactionType);
+    }
+  }
+
   //выводит текщее состояние инетрацкий для всех игроков на сервере
   printAllplayersInteractionsState() {
     this.playerInteractions.forEach((value, key) => {
-      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interaction] \u0418\u0433\u0440\u043E\u043A ".concat(key, ":"));
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(key, ":"));
       alt_server__WEBPACK_IMPORTED_MODULE_0__.log(" active: ".concat(Array.from(value.active).join(', ')));
       alt_server__WEBPACK_IMPORTED_MODULE_0__.log(" completed: ".concat(Array.from(value.completed).join(', ')));
     });

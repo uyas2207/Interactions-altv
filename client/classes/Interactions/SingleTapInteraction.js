@@ -7,15 +7,20 @@ import { PersistentNotification } from '@notifications/PersistentNotification.js
 import { intractionConfig } from '@config/IntractionConfig.js';
 
 export class SingleTapInteraction extends InteractionBase {
+    constructor(pointData) {
+        super(pointData);
+        this.config = intractionConfig.singleTapInteraction;
+    }
+
     startInteraction() {
-        this.notif = new PersistentNotification(NotificationManager.getInstance(), 'vending', intractionConfig.singleTapInteraction.title, intractionConfig.singleTapInteraction.text);     //создает и запоминает webview уведомление для 1 нажатия
+        this.notif = new PersistentNotification(NotificationManager.getInstance(), 'vending', this.config.title, this.config.text);     //создает и запоминает webview уведомление для 1 нажатия
         this.notif.show();
 
         this.handler = async (key) => {
             if ((key !== intractionConfig.intractionKey)) return;
             this.stopInteraction();
             await AnimationManager.playVendingMachineAnimation();   // запуск анимации покупки в автомате
-            drawNotification('Задача выполнена!');
+            drawNotification('Задача выполнена');
             alt.emitServer('client:succesSingleTapInteraction');   //передача на сервер информации об успешном завршении интракции
         };
 

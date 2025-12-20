@@ -9,7 +9,6 @@ import { intractionConfig } from '@config/IntractionConfig.js';
 export class MultiTapInteraction extends InteractionBase {
     constructor(pointData) {
         super(pointData);
-        //this.config.required = intractionConfig.multiTapInteraction.required;
         this.counter = 0;
         this.config = intractionConfig.multiTapInteraction;
     }

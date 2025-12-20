@@ -4,10 +4,14 @@ import * as alt from 'alt-server';
 import * as chat from 'alt:chat';
 
 import { InteractionCommands } from './commands/interactionCommands.js';
+//import { interactionPoints } from '../client/config/PointsConfig.js';
 
 class InteractionServer {
     constructor() {
         this.playerInteractions = new Map();
+
+        //this.interactionPoints = interactionPoints;
+
         this.init();
     }
 
@@ -28,6 +32,10 @@ class InteractionServer {
         alt.onClient('client:succesHoldInteraction', (player) => {
             this.completeInteraction(player, InteractionType.VEHICLE);
         });
+
+        alt.onClient('client:checkDistance', (player, interactionType) => {
+            this.checkDistance(player, interactionType);
+        });
     }
 
     // создание записи о игроке
@@ -41,7 +49,7 @@ class InteractionServer {
             completed: new Set()
         });
 
-        alt.log(`[Interaction] Игрок ${player.id} добавлен в таблицу`);
+        alt.log(`[Interactions] Игрок ${player.id} добавлен в таблицу`);
         this.printAllplayersInteractionsState();
     }
 
@@ -55,7 +63,7 @@ class InteractionServer {
         }
         
         const activeInteractions = Array.from(this.playerInteractions.get(player.id).active);
-        alt.log(`[Interaction] activeInteractions ${activeInteractions}`);
+        alt.log(`[Interactions] activeInteractions ${activeInteractions}`);
         // говорит клиенту создать демо сцену только для списка доступных типов (тех которые конкретный игрок еще не выполнил)
         alt.emitClient(player, 'client:sceneDemo', activeInteractions );
     }
@@ -70,7 +78,7 @@ class InteractionServer {
         // добавляем в выполненные
         data.completed.add(type);
 
-        alt.log(`[Interaction] Игрок ${player.id} успешно завершил интеракцию (${type})`);
+        alt.log(`[Interactions] Игрок ${player.id} успешно завершил интеракцию (${type})`);
         this.printAllplayersInteractionsState();
         // уведомление в чате игроку
         chat.send(player, `Успех! Завершена интеракция: ${type}`);
@@ -93,10 +101,31 @@ class InteractionServer {
             chat.send(player, 'Типы интераций: VEHICLE = 1, EXERCISE = 2, VENDING = 3');
         }
     }
+
+    checkDistance(player, interactionType){
+        // Получает координаты по типу взаимодействия
+        const pointData = pointsCoords[interactionType];
+        if (!pointData) {
+            alt.log(`[Interactions] Координаты не найдены для типа ${interactionType}`);
+            return;
+        }
+        const pointPos = new alt.Vector3(pointData.x, pointData.y, pointData.z);        
+        const distance = player.pos.distanceTo(pointPos);
+
+        if (distance > 3) {
+            alt.log(`[Interactions] Игрок ${player.id} слишком далеко от точки. distance: ${distance}> 3`);
+            return;
+        }
+        else{
+            alt.log(`[Interactions] Игрок ${player.id} прошел проверку дистанции. distance = ${distance}m`);
+            alt.emitClient(player, 'client:checkDistanceSuccess', interactionType);
+        }
+    }
+
     //выводит текщее состояние инетрацкий для всех игроков на сервере
     printAllplayersInteractionsState(){
         this.playerInteractions.forEach((value, key) => {
-            alt.log(`[Interaction] Игрок ${key}:`);
+            alt.log(`[Interactions] Игрок ${key}:`);
             alt.log(` active: ${Array.from(value.active).join(', ')}`);
             alt.log(` completed: ${Array.from(value.completed).join(', ')}`);
         });

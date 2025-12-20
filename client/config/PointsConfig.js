@@ -2,7 +2,11 @@ import * as alt from 'alt-client';
 
 export const interactionPoints = [
     {   //данные точки для взлома машины
-        position: new alt.Vector3(-1275.08, -1431.94, 3.47),
+        position: new alt.Vector3(
+            pointsCoords[InteractionType.VEHICLE].x,
+            pointsCoords[InteractionType.VEHICLE].y,
+            pointsCoords[InteractionType.VEHICLE].z
+        ),
         config: {
             interactionType: InteractionType.VEHICLE,
             color: new alt.RGBA(241, 196, 15),
@@ -13,7 +17,11 @@ export const interactionPoints = [
         }
     },
     {   //данные точки для упражнений
-        position: new alt.Vector3(-1273.76, -1427.74, 3.34),
+        position: new alt.Vector3(
+            pointsCoords[InteractionType.EXERCISE].x,
+            pointsCoords[InteractionType.EXERCISE].y,
+            pointsCoords[InteractionType.EXERCISE].z
+        ),
         config: {
             interactionType: InteractionType.EXERCISE,
             color: new alt.RGBA(46, 204, 113),
@@ -24,7 +32,11 @@ export const interactionPoints = [
         }
     },
     {   //данные точки для автомата с колой
-        position: new alt.Vector3(-1269.45, -1428.14, 3.34),
+        position: new alt.Vector3(
+            pointsCoords[InteractionType.VENDING].x,
+            pointsCoords[InteractionType.VENDING].y,
+            pointsCoords[InteractionType.VENDING].z
+        ),
         config: {
             interactionType: InteractionType.VENDING,
             color: new alt.RGBA(52, 152, 219),

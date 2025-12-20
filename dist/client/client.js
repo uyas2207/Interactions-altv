@@ -413,7 +413,6 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 class MultiTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.InteractionBase {
   constructor(pointData) {
     super(pointData);
-    //this.config.required = intractionConfig.multiTapInteraction.required;
     this.counter = 0;
     this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.multiTapInteraction;
   }
@@ -502,16 +501,20 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 
 
 class SingleTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_1__.InteractionBase {
+  constructor(pointData) {
+    super(pointData);
+    this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.singleTapInteraction;
+  }
   startInteraction() {
     var _this = this;
-    this.notif = new _notifications_PersistentNotification_js__WEBPACK_IMPORTED_MODULE_4__.PersistentNotification(_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__.NotificationManager.getInstance(), 'vending', _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.singleTapInteraction.title, _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.singleTapInteraction.text); //создает и запоминает webview уведомление для 1 нажатия
+    this.notif = new _notifications_PersistentNotification_js__WEBPACK_IMPORTED_MODULE_4__.PersistentNotification(_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__.NotificationManager.getInstance(), 'vending', this.config.title, this.config.text); //создает и запоминает webview уведомление для 1 нажатия
     this.notif.show();
     this.handler = /*#__PURE__*/function () {
       var _ref = _asyncToGenerator(function* (key) {
         if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.intractionKey) return;
         _this.stopInteraction();
         yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_3__.AnimationManager.playVendingMachineAnimation(); // запуск анимации покупки в автомате
-        drawNotification('Задача выполнена!');
+        drawNotification('Задача выполнена');
         alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesSingleTapInteraction'); //передача на сервер информации об успешном завршении интракции
       });
       return function (_x) {
@@ -1005,7 +1008,7 @@ var intractionConfig = {
   multiTapInteraction: {
     title: 'Отжимания',
     text: 'Быстро нажимайте E',
-    required: 10
+    required: 10 // необходимое количество нажатий для завершения интеракции
   },
   singleTapInteraction: {
     title: 'Торговый автомат',
@@ -1030,11 +1033,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   interactionPoints: () => (/* binding */ interactionPoints)
 /* harmony export */ });
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
-/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
+/* provided dependency */ var pointsCoords = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["pointsCoords"];
+/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["InteractionType"];
 
 var interactionPoints = [{
   //данные точки для взлома машины
-  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1275.08, -1431.94, 3.47),
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(pointsCoords[InteractionType.VEHICLE].x, pointsCoords[InteractionType.VEHICLE].y, pointsCoords[InteractionType.VEHICLE].z),
   config: {
     interactionType: InteractionType.VEHICLE,
     color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(241, 196, 15),
@@ -1046,7 +1050,7 @@ var interactionPoints = [{
   }
 }, {
   //данные точки для упражнений
-  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1273.76, -1427.74, 3.34),
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(pointsCoords[InteractionType.EXERCISE].x, pointsCoords[InteractionType.EXERCISE].y, pointsCoords[InteractionType.EXERCISE].z),
   config: {
     interactionType: InteractionType.EXERCISE,
     color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(46, 204, 113),
@@ -1058,7 +1062,7 @@ var interactionPoints = [{
   }
 }, {
   //данные точки для автомата с колой
-  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1269.45, -1428.14, 3.34),
+  position: new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(pointsCoords[InteractionType.VENDING].x, pointsCoords[InteractionType.VENDING].y, pointsCoords[InteractionType.VENDING].z),
   config: {
     interactionType: InteractionType.VENDING,
     color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(52, 152, 219),
@@ -1109,20 +1113,38 @@ function drawNotification(message) {
 
 /***/ }),
 
-/***/ "./shared/Consts.js":
+/***/ "./shared/Shared.js":
 /*!**************************!*\
-  !*** ./shared/Consts.js ***!
+  !*** ./shared/Shared.js ***!
   \**************************/
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   InteractionType: () => (/* binding */ InteractionType)
+/* harmony export */   InteractionType: () => (/* binding */ InteractionType),
+/* harmony export */   pointsCoords: () => (/* binding */ pointsCoords)
 /* harmony export */ });
 var InteractionType = {
   VEHICLE: 1,
   EXERCISE: 2,
   VENDING: 3
+};
+var pointsCoords = {
+  [InteractionType.VEHICLE]: {
+    x: -1275.08,
+    y: -1431.94,
+    z: 3.47
+  },
+  [InteractionType.EXERCISE]: {
+    x: -1273.76,
+    y: -1427.74,
+    z: 3.34
+  },
+  [InteractionType.VENDING]: {
+    x: -1269.45,
+    y: -1428.14,
+    z: 3.34
+  }
 };
 
 /***/ }),
@@ -1218,7 +1240,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @interactions/HoldInteraction.js */ "./client/classes/Interactions/HoldInteraction.js");
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
 /* harmony import */ var _config_PointsConfig_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @config/PointsConfig.js */ "./client/config/PointsConfig.js");
-/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Consts.js */ "./shared/Consts.js")["InteractionType"];
+/* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["InteractionType"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 
@@ -1258,7 +1280,14 @@ class Interaction {
       });
       //для создания точки по команде /create (с сервера)
       alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:createPoint', type => {
-        _this.createPoint(type);
+        _this.spawnPoints(type);
+        //this.createPoint(type);
+      });
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:checkDistanceSuccess', interactionType => {
+        // поиск индекса в массиве colshapes по interactionType
+        var pointIndex = _this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+        _this.currentInteraction = _this.createInteraction(interactionType, pointIndex); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
+        _this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
       });
       alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityEnterColshape', (colshape, entity) => _this.handleEntityEnterColshape(colshape, entity));
       alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityLeaveColshape', (colshape, entity) => _this.handleEntityLeaveColshape(colshape, entity));
@@ -1293,6 +1322,7 @@ class Interaction {
     //alt.log(`activeInteractions ${activeInteractions}`)
     this.interactionPoints.forEach((point, index) => {
       if (activeInteractions.includes(point.config.interactionType)) {
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.log("point: ".concat(JSON.stringify(point), ", index: ").concat(JSON.stringify(index)));
         var visuals = new _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_2__.PointVisuals(point.position, point.config).create();
 
         // добавление дополнительных свойств для колшейпов
@@ -1308,25 +1338,7 @@ class Interaction {
     alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0421\u043E\u0437\u0434\u0430\u043D\u043E \u043A\u043E\u043B\u0448\u0435\u0439\u043F\u043E\u0432: ".concat(this.colshapes.length));
     alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041C\u0430\u0441\u0441\u0438\u0432 \u043A\u043E\u043B\u0448\u0435\u0439\u043F\u043E\u0432:", this.colshapes);
   }
-  delPoint(interactionType) {
-    // поиск индекса в массиве colshapes по interactionType
-    var index = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
-    if (index === -1) {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041F\u043E\u043F\u044B\u0442\u043A\u0430 \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0442\u043E\u0447\u043A\u0443: ".concat(interactionType));
-      return;
-    }
-    var marker = this.markers[index];
-    var colshape = this.colshapes[index];
-    if (marker && marker.destroy) {
-      marker.destroy();
-      this.markers[index] = null;
-    }
-    if (colshape && colshape.destroy) {
-      colshape.destroy();
-      this.colshapes[index] = null;
-    }
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0422\u043E\u0447\u043A\u0430 \u0441 interactionType ".concat(interactionType, " \u0443\u0434\u0430\u043B\u0435\u043D\u0430."));
-  }
+
   //для создания точки по команде /create (с сервера)
   createPoint(type) {
     //поиск по инедексу 
@@ -1348,20 +1360,37 @@ class Interaction {
     this.colshapes.push(visuals.colshape);
     alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0421\u043E\u0437\u0434\u0430\u043D\u0430 \u0442\u043E\u0447\u043A\u0430 \u0442\u0438\u043F\u0430 ".concat(type));
   }
+  delPoint(interactionType) {
+    // поиск индекса в массиве colshapes по interactionType
+    var index = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+    if (index === -1) {
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041F\u043E\u043F\u044B\u0442\u043A\u0430 \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0442\u043E\u0447\u043A\u0443: ".concat(interactionType));
+      return;
+    }
+    var marker = this.markers[index];
+    var colshape = this.colshapes[index];
+    if (marker && marker.destroy) {
+      marker.destroy();
+      this.markers[index] = null;
+    }
+    if (colshape && colshape.destroy) {
+      colshape.destroy();
+      this.colshapes[index] = null;
+    }
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0422\u043E\u0447\u043A\u0430 \u0441 interactionType ".concat(interactionType, " \u0443\u0434\u0430\u043B\u0435\u043D\u0430."));
+  }
 
   //метод который вызывается при входе в колшейп
   handleEntityEnterColshape(colshape, entity) {
     if (!(entity instanceof alt_client__WEBPACK_IMPORTED_MODULE_0__.Player)) return;
     if (!colshape.interactionType) return; //если в будущем будут добавлены другие колшейпы
-    if (!this.checkDistance(colshape)) return; //проверка дистанции от читеров
-
-    this.currentInteraction = this.createInteraction(colshape.interactionType, colshape.index); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
-    this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:checkDistance', colshape.interactionType); //проверка дистанции от читеров на сервере
   }
 
   //проверка дистанции от читеров
   checkDistance(colshape) {
     var pointData = this.interactionPoints[colshape.pointIndex];
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.log("pointData: ".concat(JSON.stringify(pointData), ", colshape.pointIndex ").concat(colshape.pointIndex));
     var distance = pointData.position.distanceTo(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.pos);
     if (distance > 3) {
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log("distance: ".concat(distance, "> 3"));
