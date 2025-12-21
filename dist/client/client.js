@@ -173,72 +173,57 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     return _asyncToGenerator(function* () {
       _this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', _this.config.title, 0, _this.config.text);
       _this.updateInteraction(0);
-      _this.keyPressHandler = /*#__PURE__*/function () {
-        var _ref = _asyncToGenerator(function* (key) {
-          //реагирует только на клавишу E
-          if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.intractionKey) return;
-          //дебаунс от спама - проверяем можно ли обработать это нажатие
-          if (!_this.canProcessKeyPress(key)) {
-            return; // если дебаунс активен, отменяет последующие действия
-          }
-          // если при нажатии на E уже запущен процесс взлома произойдет return
-          if (_this.currentProgressPromise) {
-            return;
-          }
-          _this.progressShouldStop = false;
-          alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Запуск нового прогресса...');
-          //анимация для взлома
-          natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base', 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
-
-          //создает и сохраняет Promise для отслеживания выполнения runProgress
-          _this.currentProgressPromise = _this.runProgress()
-          //обработка успешного завершения прогресса
-          .then(() => {
-            alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс завершен успешно');
-            drawNotification('Задача выполнена!');
-            alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesHoldInteraction'); //передача на сервер информации об успешном завршении интракции, сервер запомнит что игрок выполнил конкретную интеракцию и удале ее маркер и колшейп
-          })
-          //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка this.progressShouldStop = true на зажатую E)
-          .catch(error => {
-            //преднамеренное прерывание
-            if (error.message === 'Прерывание') {
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log('startInteraction Прогресс прерван');
-              // сбрасывает прогрессбар в начальное состояние
-              _this.updateInteraction(0); //метод для изменения текста уведомления
-              //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
-              natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
-              drawNotification('Процесс прерван!');
-            }
-          })
-          //выполняется в любом случае - при успехе или ошибке
-          .finally(() => {
-            // сбрасывает ссылку на Promise чтобы разрешить новый запуск
-            _this.currentProgressPromise = null;
-            alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Промис прогресса очищен в finally');
-          });
-        });
-        return function (_x) {
-          return _ref.apply(this, arguments);
-        };
-      }();
-
-      // Обработчик отпускания клавиши E
-      _this.keyUpHandler = key => {
-        // игнорирует отпускание других клавиш
-        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.intractionKey) return;
-        if (_this.currentProgressPromise && !_this.progressShouldStop) {
-          _this.progressShouldStop = true;
-          alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Клавиша E отпущена, установлен shouldStop');
-        }
-      };
-
-      // создаются обработчики событий
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keydown', _this.keyPressHandler);
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keyup', _this.keyUpHandler);
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Созданы обработчики progressBar');
     })();
   }
+  keyPressHandler(key) {
+    //дебаунс от спама - проверяем можно ли обработать это нажатие
+    if (!super.canProcessKeyPress(key)) {
+      return; // если дебаунс активен, отменяет последующие действия
+    }
+    // если при нажатии на E уже запущен процесс взлома произойдет return
+    if (this.currentProgressPromise) {
+      return;
+    }
+    this.progressShouldStop = false;
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Запуск нового прогресса...');
+    //анимация для взлома
+    natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base', 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
 
+    //создает и сохраняет Promise для отслеживания выполнения runProgress
+    this.currentProgressPromise = this.runProgress()
+    //обработка успешного завершения прогресса
+    .then(() => {
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс завершен успешно');
+      drawNotification('Задача выполнена!');
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesHoldInteraction'); //передача на сервер информации об успешном завршении интракции, сервер запомнит что игрок выполнил конкретную интеракцию и удале ее маркер и колшейп
+    })
+    //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка this.progressShouldStop = true на зажатую E)
+    .catch(error => {
+      //преднамеренное прерывание
+      if (error.message === 'Прерывание') {
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.log('startInteraction Прогресс прерван');
+        // сбрасывает прогрессбар в начальное состояние
+        this.updateInteraction(0); //метод для изменения текста уведомления
+        //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
+        natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
+        drawNotification('Процесс прерван!');
+      }
+    })
+    //выполняется в любом случае - при успехе или ошибке
+    .finally(() => {
+      // сбрасывает ссылку на Promise чтобы разрешить новый запуск
+      this.currentProgressPromise = null;
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Промис прогресса очищен в finally');
+    });
+  }
+  // Обработчик отпускания клавиши E
+  keyUpHandler() {
+    // игнорирует отпускание других клавиш
+    if (this.currentProgressPromise && !this.progressShouldStop) {
+      this.progressShouldStop = true;
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Клавиша E отпущена, установлен shouldStop');
+    }
+  }
   // основной метод выполнения прогресса (взлома)
   runProgress() {
     var _this2 = this;
@@ -300,17 +285,7 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
   }
   stopInteraction() {
     natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
-
     //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
-    if (this.keyPressHandler) {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.off('keydown', this.keyPressHandler);
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Удален обработчик keyPressHandler stopInteraction');
-    }
-    if (this.keyUpHandler) {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.off('keyup', this.keyUpHandler);
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Удален обработчик keyup stopInteraction');
-    }
-
     //флаг shouldStop для остановки runProgress
     if (!this.progressShouldStop) {
       this.progressShouldStop = true;
@@ -325,7 +300,7 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
     this.bar.update(i / 10, "\u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441: ".concat(i * 10, "%"));
   }
   getInteractionText() {
-    return "Удерживайте E";
+    return this.config.text;
   }
 }
 
@@ -356,6 +331,10 @@ class InteractionBase {
   startInteraction() {}
   stopInteraction() {}
   updateInteraction() {}
+  keyPressHandler() {}
+  keyUpHandler() {
+    return;
+  }
   getInteractionText() {
     return "";
   }
@@ -417,39 +396,31 @@ class MultiTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2
     this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.multiTapInteraction;
   }
   startInteraction() {
-    var _superprop_getCanProcessKeyPress = () => super.canProcessKeyPress,
-      _this = this;
     //отображение уведмоления
     this.multipleTaps = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createTapCounter('exercise', this.config.title, 0, this.config.required, this.config.text);
-    //логика при нажатии на кнопку
-    this.handler = /*#__PURE__*/function () {
-      var _ref = _asyncToGenerator(function* (key) {
-        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
-        //дебаунс от спама
-        if (!_superprop_getCanProcessKeyPress().call(_this, key)) {
-          return;
-        }
-        _this.counter++;
-        _this.updateInteraction(); //метод для изменения текста уведомления
-        //анимация 1 отжимания (так как за 1 секунду делается только 1 отжимание)
-        natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@base', 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
-        yield wait(1000);
-        //анимация ожидания следующего отжимания (следущего нажатия E)
-        natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a', 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
-        if (_this.counter === _this.config.required) {
-          _this.stopInteraction();
-          natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@exit', 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
-          drawNotification('Задача выполнена!');
-          alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesMultiTapInteraction'); //передача на сервер информации об успешном завршении интракции
-        }
-      });
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }();
-    // регистрирует обработчик
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keydown', this.handler);
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Создан обработчик нажатия Е');
+  }
+  keyPressHandler(key) {
+    var _superprop_getCanProcessKeyPress = () => super.canProcessKeyPress,
+      _this = this;
+    return _asyncToGenerator(function* () {
+      //дебаунс от спама
+      if (!_superprop_getCanProcessKeyPress().call(_this, key)) {
+        return;
+      }
+      _this.counter++;
+      _this.updateInteraction(); //метод для изменения текста уведомления
+      //анимация 1 отжимания (так как за 1 секунду делается только 1 отжимание)
+      natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@base', 'base', 8.0, -8.0, -1, 1, 0, false, false, false);
+      yield wait(1000);
+      //анимация ожидания следующего отжимания (следущего нажатия E)
+      natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@idle_a', 'idle_a', 8.0, -8.0, -1, 1, 0, false, false, false);
+      if (_this.counter === _this.config.required) {
+        _this.stopInteraction();
+        natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_push_ups@male@exit', 'exit', 8.0, -8.0, -1, 0, 0, false, false, false);
+        drawNotification('Задача выполнена!');
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesMultiTapInteraction'); //передача на сервер информации об успешном завршении интракции
+      }
+    })();
   }
 
   //метод для изменения текста уведомления
@@ -458,18 +429,13 @@ class MultiTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2
   }
   stopInteraction() {
     //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
-    if (this.handler) {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.off('keydown', this.handler);
-      this.handler = null;
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Обработчик keydown удален');
-    }
     if (this.multipleTaps) {
       this.multipleTaps.hide();
       this.multipleTaps = null;
     }
   }
   getInteractionText() {
-    return "Быстро нажимайте E!";
+    return this.config.text;
   }
 }
 
@@ -506,40 +472,29 @@ class SingleTapInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_
     this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.singleTapInteraction;
   }
   startInteraction() {
-    var _this = this;
     this.notif = new _notifications_PersistentNotification_js__WEBPACK_IMPORTED_MODULE_4__.PersistentNotification(_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__.NotificationManager.getInstance(), 'vending', this.config.title, this.config.text); //создает и запоминает webview уведомление для 1 нажатия
     this.notif.show();
-    this.handler = /*#__PURE__*/function () {
-      var _ref = _asyncToGenerator(function* (key) {
-        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_5__.intractionConfig.intractionKey) return;
+  }
+  keyPressHandler() {
+    var _this = this;
+    return _asyncToGenerator(function* () {
+      if (_notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_2__.NotificationManager.getInstance().isWebViewOpen) {
+        //предотвращает повторные вызовы (можно было бы создать новое значение которое бы обозначало что процесс уже запущен либо использовать асинхронность, но у меня и так ее слишком много)
         _this.stopInteraction();
         yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_3__.AnimationManager.playVendingMachineAnimation(); // запуск анимации покупки в автомате
         drawNotification('Задача выполнена');
         alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesSingleTapInteraction'); //передача на сервер информации об успешном завршении интракции
-      });
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }();
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keydown', this.handler);
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Создан обработчик нажатия Е');
+      }
+    })();
   }
   stopInteraction() {
-    //native.clearPedTasks(alt.Player.local.scriptID);
-
-    //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
-    if (this.handler) {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.off('keydown', this.handler);
-      this.handler = null;
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Обработчик keydown удален');
-    }
     if (this.notif) {
       this.notif.hide();
       this.notif = null;
     }
   }
   getInteractionText() {
-    return "Нажмите E";
+    return this.config.text;
   }
 }
 
@@ -1240,9 +1195,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _interactions_HoldInteraction_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @interactions/HoldInteraction.js */ "./client/classes/Interactions/HoldInteraction.js");
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
 /* harmony import */ var _config_PointsConfig_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @config/PointsConfig.js */ "./client/config/PointsConfig.js");
+/* harmony import */ var _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @config/IntractionConfig.js */ "./client/config/IntractionConfig.js");
 /* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["InteractionType"];
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+
 
 
 
@@ -1280,18 +1237,32 @@ class Interaction {
       });
       //для создания точки по команде /create (с сервера)
       alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:createPoint', type => {
-        //this.spawnPoints(type);
         _this.createPoint(type);
       });
       alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:checkDistanceSuccess', interactionType => {
-        // поиск индекса в массиве colshapes по interactionType
-        var pointIndex = _this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
-        _this.currentInteraction = _this.createInteraction(interactionType, pointIndex); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
-        _this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+        _this.beginInteraction(interactionType);
       });
       alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityEnterColshape', (colshape, entity) => _this.handleEntityEnterColshape(colshape, entity));
       alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityLeaveColshape', (colshape, entity) => _this.handleEntityLeaveColshape(colshape, entity));
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keydown', key => {
+        if (!_this.currentInteraction) return; //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
+        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
+        _this.keyPressHandler(key);
+      });
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keyup', key => {
+        if (!_this.currentInteraction) return; //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
+        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
+        _this.keyUpHandler(key);
+      });
     })();
+  }
+  keyPressHandler(key) {
+    //alt.log(`keyPressHandler ${key}`);
+    this.currentInteraction.keyPressHandler(key);
+  }
+  keyUpHandler(key) {
+    //alt.log(`keyUpHandler ${key}`);
+    this.currentInteraction.keyUpHandler(key);
   }
 
   // метод для инициализации NotificationManager
@@ -1331,7 +1302,7 @@ class Interaction {
 
   //для создания одной точки через spawnPoints или по команде /create (с сервера)
   createPoint(type) {
-    //поиск по инедексу 
+    //поиск по инедексу
     var pointIndex = this.interactionPoints.findIndex(point => point.config.interactionType === type);
     if (pointIndex === -1) {
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439 \u0442\u0438\u043F \u0442\u043E\u0447\u043A\u0438: ".concat(type));
@@ -1377,20 +1348,6 @@ class Interaction {
     alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:checkDistance', colshape.interactionType); //проверка дистанции от читеров на сервере
   }
 
-  //проверка дистанции от читеров
-  checkDistance(colshape) {
-    var pointData = this.interactionPoints[colshape.pointIndex];
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.log("pointData: ".concat(JSON.stringify(pointData), ", colshape.pointIndex ").concat(colshape.pointIndex));
-    var distance = pointData.position.distanceTo(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.pos);
-    if (distance > 3) {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log("distance: ".concat(distance, "> 3"));
-      return false;
-    } else {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Проверка дистанции пройдена успешно');
-      return true;
-    }
-  }
-
   //метод который вызывается при выходе из колшейпа
   handleEntityLeaveColshape(colshape, entity) {
     if (!(entity instanceof alt_client__WEBPACK_IMPORTED_MODULE_0__.Player)) return;
@@ -1399,6 +1356,13 @@ class Interaction {
     this.currentInteraction.stopInteraction(); //вызов логики отмены для конкретного типа взаимодействия
     this.currentInteraction = null;
   }
+  beginInteraction(interactionType) {
+    // поиск индекса в массиве colshapes по interactionType
+    var pointIndex = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+    this.currentInteraction = this.createInteraction(interactionType, pointIndex); //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
+    this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+  }
+
   //создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
   createInteraction(type, index) {
     var pointData = this.interactionPoints[index];

@@ -12,6 +12,8 @@ export class InteractionBase {
     startInteraction() {}
     stopInteraction() {}
     updateInteraction() {}
+    keyPressHandler() {}
+    keyUpHandler() { return; }
     getInteractionText() { return ""; }
     
     //общий метод для дебаунса от спама

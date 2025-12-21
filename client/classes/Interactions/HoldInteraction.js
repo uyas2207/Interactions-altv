@@ -13,16 +13,15 @@ export class HoldInteraction extends InteractionBase {
         this.config = intractionConfig.holdInteraction;
     }
 
-
     // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
     async startInteraction(){                
         this.bar = NotificationManager.getInstance().createProgressBar('lockpick', this.config.title, 0, this.config.text);
         this.updateInteraction(0);
-        this.keyPressHandler = async (key) => {
-            //реагирует только на клавишу E
-            if (key !== intractionConfig.intractionKey) return;
+    }
+
+        keyPressHandler(key) {
             //дебаунс от спама - проверяем можно ли обработать это нажатие
-            if (!this.canProcessKeyPress(key)) {
+            if (!super.canProcessKeyPress(key)) {
                 return; // если дебаунс активен, отменяет последующие действия
             }
             // если при нажатии на E уже запущен процесс взлома произойдет return
@@ -65,21 +64,14 @@ export class HoldInteraction extends InteractionBase {
         };
 
         // Обработчик отпускания клавиши E
-        this.keyUpHandler = (key) => {
+        keyUpHandler() {
             // игнорирует отпускание других клавиш
-            if (key !== intractionConfig.intractionKey) return;
             if(this.currentProgressPromise && !this.progressShouldStop){
                 this.progressShouldStop = true;
                 alt.log('Клавиша E отпущена, установлен shouldStop');
             }
         };
     
-        // создаются обработчики событий
-        alt.on('keydown', this.keyPressHandler);
-        alt.on('keyup', this.keyUpHandler);
-        alt.log('Созданы обработчики progressBar');
-    }
- 
 
     // основной метод выполнения прогресса (взлома)
     async runProgress() {
@@ -139,18 +131,7 @@ export class HoldInteraction extends InteractionBase {
 
     stopInteraction() {
         native.clearPedTasks(alt.Player.local.scriptID);
-
         //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
-        if (this.keyPressHandler) {
-            alt.off('keydown', this.keyPressHandler);
-            alt.log('Удален обработчик keyPressHandler stopInteraction')
-        }
-        
-        if (this.keyUpHandler) {
-            alt.off('keyup', this.keyUpHandler);
-            alt.log('Удален обработчик keyup stopInteraction')
-        }
-        
         //флаг shouldStop для остановки runProgress
         if(!this.progressShouldStop){
             this.progressShouldStop = true;
@@ -166,5 +147,5 @@ export class HoldInteraction extends InteractionBase {
         this.bar.update(i/10, `Прогресс: ${i*10}%`);
     }
 
-    getInteractionText() { return "Удерживайте E"; }
+    getInteractionText() { return this.config.text; }
 }

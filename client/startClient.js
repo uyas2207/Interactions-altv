@@ -7,7 +7,7 @@ import { MultiTapInteraction } from '@interactions/MultiTapInteraction.js';
 import { HoldInteraction } from '@interactions/HoldInteraction.js';
 import { NotificationManager } from '@notifications/NotificationManager.js';
 import { interactionPoints } from '@config/PointsConfig.js';
-
+import { intractionConfig } from '@config/IntractionConfig.js';
 
 class Interaction {
     constructor() {
@@ -33,23 +33,39 @@ class Interaction {
         });
         //для создания точки по команде /create (с сервера)
         alt.onServer('client:createPoint', (type) => {
-            //this.spawnPoints(type);
             this.createPoint(type);
         });
         
         alt.onServer('client:checkDistanceSuccess', (interactionType) => {
-        // поиск индекса в массиве colshapes по interactionType
-        const pointIndex = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
-
-        this.currentInteraction = this.createInteraction(interactionType, pointIndex);  //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
-        this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+            this.beginInteraction(interactionType);
         });
-
 
         alt.on('entityEnterColshape', (colshape, entity) => this.handleEntityEnterColshape(colshape, entity));
         alt.on('entityLeaveColshape', (colshape, entity) => this.handleEntityLeaveColshape(colshape, entity));
+
+        alt.on('keydown', (key) => {
+            if (!this.currentInteraction) return;   //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
+            if (key !== intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
+            this.keyPressHandler(key);
+        });
+
+        alt.on('keyup', (key)  => {
+            if (!this.currentInteraction) return;    //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
+            if (key !== intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
+            this.keyUpHandler(key);
+        });
     }
     
+    keyPressHandler(key){
+        //alt.log(`keyPressHandler ${key}`);
+        this.currentInteraction.keyPressHandler(key);
+    }
+    
+    keyUpHandler(key){
+        //alt.log(`keyUpHandler ${key}`);
+        this.currentInteraction.keyUpHandler(key);
+    }
+
     // метод для инициализации NotificationManager
     async initializeNotificationManager() {
         alt.log('1. Инициализация NotificationManager');
@@ -86,7 +102,7 @@ class Interaction {
  
     //для создания одной точки через spawnPoints или по команде /create (с сервера)
     createPoint(type) {
-        //поиск по инедексу 
+        //поиск по инедексу
         const pointIndex = this.interactionPoints.findIndex(point => point.config.interactionType === type);
         
         if (pointIndex === -1) {
@@ -133,29 +149,12 @@ class Interaction {
         alt.log(`Точка с interactionType ${interactionType} удалена.`);
     }
 
-
     //метод который вызывается при входе в колшейп
     handleEntityEnterColshape(colshape, entity) {
         if (!(entity instanceof alt.Player)) return;
         if (!colshape.interactionType) return;  //если в будущем будут добавлены другие колшейпы
         alt.emitServer('client:checkDistance', colshape.interactionType);  //проверка дистанции от читеров на сервере
     }
-    
-    //проверка дистанции от читеров
-    checkDistance(colshape){
-        const pointData = this.interactionPoints[colshape.pointIndex];
-        alt.log(`pointData: ${JSON.stringify(pointData)}, colshape.pointIndex ${colshape.pointIndex}`);
-        const distance = pointData.position.distanceTo(alt.Player.local.pos);
-        if(distance>3){
-            alt.log(`distance: ${distance}> 3`);
-            return false;
-        }
-        else{
-            alt.log('Проверка дистанции пройдена успешно');
-            return true;
-        }
-    }
-
 
     //метод который вызывается при выходе из колшейпа
     handleEntityLeaveColshape(colshape, entity) {
@@ -165,6 +164,15 @@ class Interaction {
         this.currentInteraction.stopInteraction();  //вызов логики отмены для конкретного типа взаимодействия
         this.currentInteraction = null; 
     }
+
+    beginInteraction(interactionType){
+        // поиск индекса в массиве colshapes по interactionType
+        const pointIndex = this.colshapes.findIndex(colshape => colshape && colshape.interactionType === interactionType);
+
+        this.currentInteraction = this.createInteraction(interactionType, pointIndex);  //запоминает и создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
+        this.currentInteraction.startInteraction(); //вызов логики для конкретного типа взаимодействия
+    }
+
     //создает webview уведмоления в зависимости от типа колшейпа в который вошел игрок
     createInteraction(type, index) {
         const pointData = this.interactionPoints[index];

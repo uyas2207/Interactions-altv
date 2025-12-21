@@ -15,34 +15,23 @@ export class SingleTapInteraction extends InteractionBase {
     startInteraction() {
         this.notif = new PersistentNotification(NotificationManager.getInstance(), 'vending', this.config.title, this.config.text);     //создает и запоминает webview уведомление для 1 нажатия
         this.notif.show();
+    }
 
-        this.handler = async (key) => {
-            if ((key !== intractionConfig.intractionKey)) return;
+    async keyPressHandler() {
+        if (NotificationManager.getInstance().isWebViewOpen){   //предотвращает повторные вызовы (можно было бы создать новое значение которое бы обозначало что процесс уже запущен либо использовать асинхронность, но у меня и так ее слишком много)
             this.stopInteraction();
             await AnimationManager.playVendingMachineAnimation();   // запуск анимации покупки в автомате
             drawNotification('Задача выполнена');
             alt.emitServer('client:succesSingleTapInteraction');   //передача на сервер информации об успешном завршении интракции
-        };
-
-        alt.on('keydown', this.handler);
-        alt.log('Создан обработчик нажатия Е');
-    }
+        }
+    };
 
     stopInteraction() {
-        //native.clearPedTasks(alt.Player.local.scriptID);
-
-        //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
-        if (this.handler) {
-            alt.off('keydown', this.handler);
-            this.handler = null;
-            alt.log('Обработчик keydown удален');
-        }
-
         if (this.notif) {
             this.notif.hide();
             this.notif = null;
         }
     }
 
-    getInteractionText() { return "Нажмите E"; }
+    getInteractionText() { return this.config.text; }
 }

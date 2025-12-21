@@ -13,6 +13,8 @@ class InteractionServer {
     }
 
     init(){
+        alt.on('resourceStart', this.spawnServerRequisite); //спавнит автомобиль
+
         alt.on('playerConnect', async (player) => {
             this.initializePlayer(player);
             this.demonstrationScene(player);
@@ -35,6 +37,12 @@ class InteractionServer {
         });
     }
 
+    //спавнит автомобиль
+    spawnServerRequisite(){
+        new alt.Vehicle('benson', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
+        alt.log('[Interactions] Создан автомобиль при старте сервера');
+    }
+
     // создание записи о игроке
     initializePlayer(player) {
         //в случае перезахода не перезаписываются данные игрока (запоминает что уже было выполнено ранее)
@@ -53,12 +61,6 @@ class InteractionServer {
     // При входе — подготовка сцены
     demonstrationScene(player) {
         player.spawn(-1271.63, -1430.71, 4.34);
-
-        if (!this.vehicleCreated) {
-            new alt.Vehicle('benson', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
-            this.vehicleCreated = true;
-        }
-        
         const activeInteractions = Array.from(this.playerInteractions.get(player.id).active);
         alt.log(`[Interactions] activeInteractions ${activeInteractions}`);
         // говорит клиенту создать демо сцену только для списка доступных типов (тех которые конкретный игрок еще не выполнил)
@@ -98,7 +100,8 @@ class InteractionServer {
             chat.send(player, 'Типы интераций: VEHICLE = 1, EXERCISE = 2, VENDING = 3');
         }
     }
-
+    
+    //проверка дистанции от читеров
     checkDistance(player, interactionType){
         // Получает координаты по типу взаимодействия
         const pointData = pointsCoords[interactionType];
@@ -109,13 +112,13 @@ class InteractionServer {
         const pointPos = new alt.Vector3(pointData.x, pointData.y, pointData.z);        
         const distance = player.pos.distanceTo(pointPos);
 
-        if (distance > 3) {
-            alt.log(`[Interactions] Игрок ${player.id} слишком далеко от точки. distance: ${distance}> 3`);
-            return;
+        if (distance >= 0 && distance < 3) {
+            alt.log(`[Interactions] Игрок ${player.id} прошел проверку дистанции. ${distance} < 3`);
+            alt.emitClient(player, 'client:checkDistanceSuccess', interactionType);
         }
         else{
-            alt.log(`[Interactions] Игрок ${player.id} прошел проверку дистанции. distance = ${distance}m`);
-            alt.emitClient(player, 'client:checkDistanceSuccess', interactionType);
+            alt.log(`[Interactions] Игрок ${player.id} не прошел проверку на расстояние. distance: ${distance}m`);
+            return;
         }
     }
 

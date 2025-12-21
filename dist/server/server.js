@@ -167,6 +167,8 @@ class InteractionServer {
   }
   init() {
     var _this = this;
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.on('resourceStart', this.spawnServerRequisite); //спавнит автомобиль
+
     alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', /*#__PURE__*/function () {
       var _ref = _asyncToGenerator(function* (player) {
         _this.initializePlayer(player);
@@ -190,6 +192,12 @@ class InteractionServer {
     });
   }
 
+  //спавнит автомобиль
+  spawnServerRequisite() {
+    new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vehicle('benson', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.log('[Interactions] Создан автомобиль при старте сервера');
+  }
+
   // создание записи о игроке
   initializePlayer(player) {
     //в случае перезахода не перезаписываются данные игрока (запоминает что уже было выполнено ранее)
@@ -207,10 +215,6 @@ class InteractionServer {
   // При входе — подготовка сцены
   demonstrationScene(player) {
     player.spawn(-1271.63, -1430.71, 4.34);
-    if (!this.vehicleCreated) {
-      new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vehicle('benson', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
-      this.vehicleCreated = true;
-    }
     var activeInteractions = Array.from(this.playerInteractions.get(player.id).active);
     alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] activeInteractions ".concat(activeInteractions));
     // говорит клиенту создать демо сцену только для списка доступных типов (тех которые конкретный игрок еще не выполнил)
@@ -246,6 +250,8 @@ class InteractionServer {
       alt_chat__WEBPACK_IMPORTED_MODULE_1__.send(player, 'Типы интераций: VEHICLE = 1, EXERCISE = 2, VENDING = 3');
     }
   }
+
+  //проверка дистанции от читеров
   checkDistance(player, interactionType) {
     // Получает координаты по типу взаимодействия
     var pointData = pointsCoords[interactionType];
@@ -255,12 +261,12 @@ class InteractionServer {
     }
     var pointPos = new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3(pointData.x, pointData.y, pointData.z);
     var distance = player.pos.distanceTo(pointPos);
-    if (distance > 3) {
-      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u0430\u043B\u0435\u043A\u043E \u043E\u0442 \u0442\u043E\u0447\u043A\u0438. distance: ").concat(distance, "> 3"));
-      return;
-    } else {
-      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u043F\u0440\u043E\u0448\u0435\u043B \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443 \u0434\u0438\u0441\u0442\u0430\u043D\u0446\u0438\u0438. distance = ").concat(distance, "m"));
+    if (distance >= 0 && distance < 3) {
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u043F\u0440\u043E\u0448\u0435\u043B \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443 \u0434\u0438\u0441\u0442\u0430\u043D\u0446\u0438\u0438. ").concat(distance, " < 3"));
       alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'client:checkDistanceSuccess', interactionType);
+    } else {
+      alt_server__WEBPACK_IMPORTED_MODULE_0__.log("[Interactions] \u0418\u0433\u0440\u043E\u043A ".concat(player.id, " \u043D\u0435 \u043F\u0440\u043E\u0448\u0435\u043B \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443 \u043D\u0430 \u0440\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u0435. distance: ").concat(distance, "m"));
+      return;
     }
   }
 
