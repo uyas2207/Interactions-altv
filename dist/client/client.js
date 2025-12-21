@@ -1280,8 +1280,8 @@ class Interaction {
       });
       //для создания точки по команде /create (с сервера)
       alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:createPoint', type => {
-        _this.spawnPoints(type);
-        //this.createPoint(type);
+        //this.spawnPoints(type);
+        _this.createPoint(type);
       });
       alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:checkDistanceSuccess', interactionType => {
         // поиск индекса в массиве colshapes по interactionType
@@ -1318,28 +1318,18 @@ class Interaction {
       yield _classes_AnimationManager_js__WEBPACK_IMPORTED_MODULE_1__.AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
     })();
   }
+
+  //для создания всех точек при входе игрока
   spawnPoints(activeInteractions) {
-    //alt.log(`activeInteractions ${activeInteractions}`)
-    this.interactionPoints.forEach((point, index) => {
-      if (activeInteractions.includes(point.config.interactionType)) {
-        alt_client__WEBPACK_IMPORTED_MODULE_0__.log("point: ".concat(JSON.stringify(point), ", index: ").concat(JSON.stringify(index)));
-        var visuals = new _classes_PointVisuals_js__WEBPACK_IMPORTED_MODULE_2__.PointVisuals(point.position, point.config).create();
-
-        // добавление дополнительных свойств для колшейпов
-        visuals.colshape.interactionType = point.config.interactionType;
-        visuals.colshape.pointIndex = index; // для идентификации точки
-
-        // добавление данных созданной точки в массивы
-        this.markers.push(visuals.marker);
-        this.colshapes.push(visuals.colshape);
-      }
+    activeInteractions.forEach(type => {
+      this.createPoint(type);
     });
     alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0421\u043E\u0437\u0434\u0430\u043D\u043E \u043C\u0430\u0440\u043A\u0435\u0440\u043E\u0432: ".concat(this.markers.length));
     alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0421\u043E\u0437\u0434\u0430\u043D\u043E \u043A\u043E\u043B\u0448\u0435\u0439\u043F\u043E\u0432: ".concat(this.colshapes.length));
     alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041C\u0430\u0441\u0441\u0438\u0432 \u043A\u043E\u043B\u0448\u0435\u0439\u043F\u043E\u0432:", this.colshapes);
   }
 
-  //для создания точки по команде /create (с сервера)
+  //для создания одной точки через spawnPoints или по команде /create (с сервера)
   createPoint(type) {
     //поиск по инедексу 
     var pointIndex = this.interactionPoints.findIndex(point => point.config.interactionType === type);

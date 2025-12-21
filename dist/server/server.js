@@ -160,14 +160,9 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 // Your chat resource module.
 
 
-//import { interactionPoints } from '../client/config/PointsConfig.js';
-
 class InteractionServer {
   constructor() {
     this.playerInteractions = new Map();
-
-    //this.interactionPoints = interactionPoints;
-
     this.init();
   }
   init() {

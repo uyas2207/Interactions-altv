@@ -4,13 +4,10 @@ import * as alt from 'alt-server';
 import * as chat from 'alt:chat';
 
 import { InteractionCommands } from './commands/interactionCommands.js';
-//import { interactionPoints } from '../client/config/PointsConfig.js';
 
 class InteractionServer {
     constructor() {
         this.playerInteractions = new Map();
-
-        //this.interactionPoints = interactionPoints;
 
         this.init();
     }

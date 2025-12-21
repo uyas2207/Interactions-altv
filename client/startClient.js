@@ -33,8 +33,8 @@ class Interaction {
         });
         //для создания точки по команде /create (с сервера)
         alt.onServer('client:createPoint', (type) => {
-            this.spawnPoints(type);
-            //this.createPoint(type);
+            //this.spawnPoints(type);
+            this.createPoint(type);
         });
         
         alt.onServer('client:checkDistanceSuccess', (interactionType) => {
@@ -72,29 +72,19 @@ class Interaction {
         await AnimationManager.loadAnimDict('amb@world_human_stand_mobile@male@text@base');
     }
 
-    
+    //для создания всех точек при входе игрока
     spawnPoints(activeInteractions) {
-        //alt.log(`activeInteractions ${activeInteractions}`)
-        this.interactionPoints.forEach((point, index) => {
-            if (activeInteractions.includes(point.config.interactionType)){
-                alt.log(`point: ${JSON.stringify(point)}, index: ${JSON.stringify(index)}`);
-            const visuals = new PointVisuals(point.position, point.config).create();
-        
-            // добавление дополнительных свойств для колшейпов
-            visuals.colshape.interactionType = point.config.interactionType;
-            visuals.colshape.pointIndex = index; // для идентификации точки
-        
-            // добавление данных созданной точки в массивы
-            this.markers.push(visuals.marker);
-            this.colshapes.push(visuals.colshape);
-            }
+
+        activeInteractions.forEach((type) => {
+            this.createPoint(type);
         });
+        
         alt.log(`Создано маркеров: ${this.markers.length}`);
         alt.log(`Создано колшейпов: ${this.colshapes.length}`);
         alt.log(`Массив колшейпов:`, this.colshapes);
     }
  
-        //для создания точки по команде /create (с сервера)
+    //для создания одной точки через spawnPoints или по команде /create (с сервера)
     createPoint(type) {
         //поиск по инедексу 
         const pointIndex = this.interactionPoints.findIndex(point => point.config.interactionType === type);
