@@ -153,8 +153,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _commands_interactionCommands_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./commands/interactionCommands.js */ "./server/commands/interactionCommands.js");
 /* provided dependency */ var InteractionType = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["InteractionType"];
 /* provided dependency */ var pointsCoords = __webpack_require__(/*! ./shared/Shared.js */ "./shared/Shared.js")["pointsCoords"];
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 // alt:V built-in module that provides server-side API.
 
 // Your chat resource module.
@@ -166,18 +164,12 @@ class InteractionServer {
     this.init();
   }
   init() {
-    var _this = this;
     alt_server__WEBPACK_IMPORTED_MODULE_0__.on('resourceStart', this.spawnServerRequisite); //спавнит автомобиль
 
-    alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', /*#__PURE__*/function () {
-      var _ref = _asyncToGenerator(function* (player) {
-        _this.initializePlayer(player);
-        _this.demonstrationScene(player);
-      });
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }());
+    alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', player => {
+      this.initializePlayer(player);
+      this.demonstrationScene(player);
+    });
     alt_server__WEBPACK_IMPORTED_MODULE_0__.onClient('client:succesSingleTapInteraction', player => {
       this.completeInteraction(player, InteractionType.VENDING);
     });

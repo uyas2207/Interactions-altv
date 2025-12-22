@@ -14,9 +14,14 @@ export class AnimationManager {
         }
 
         native.requestAnimDict(dict);
+        await wait(800);
+        const status = native.hasAnimDictLoaded(dict);
+        alt.log(`native.hasAnimDictLoaded(${dict}): ${status}`);
+        return status;
 
+/*
         let counter = 0;
-        while (!native.hasAnimDictLoaded(dict) && counter < 100) {
+        while (!native.hasAnimDictLoaded(dict) && counter < 10) {
             alt.log(`Поптыка загрузить анимацию ${dict} номер: ${counter+1}`);
             await wait(200);
             counter++;
@@ -25,6 +30,7 @@ export class AnimationManager {
             alt.log(`Не удалось загрузить анимацию:${dict}`);
             return false;
         }
+        */
     }
 
     // спавн пропа перед началом анимации
@@ -35,11 +41,14 @@ export class AnimationManager {
         // загружает проп
         if (!native.hasModelLoaded(modelHash)) {
             native.requestModel(modelHash);
+            await wait(600);
+            /*
             let counter = 0;
-            while (!native.hasModelLoaded(modelHash) && counter < 100) {
-                await wait(20);
+            while (!native.hasModelLoaded(modelHash) && counter < 10) {
+                await wait(200);
                 counter++;
             }
+            */
             //если не получилось загрузить
             if (!native.hasModelLoaded(modelHash)) {
                 alt.log(`spawnProp: не удалось загрузить модель ${modelName}`);
@@ -111,22 +120,18 @@ export class AnimationManager {
 
         // пауза для корректного позиционирования
         await wait(300);
-
-        try {
-            native.taskPlayAnim(ped, animConfig.dict, animConfig.use, 8.0, -8.0, -1, 0, 0, false, false, false);
-            await wait(2200);
-            
-            const drinkCan = await this.spawnProp('ng_proc_sodacan_01a');
-            
-            native.taskPlayAnim(ped, animConfig.dict, animConfig.drink, 8.0, -8.0, -1, 0, 0, false, false, false);
-            await wait(1800);
-            AnimationManager.deleteProp(drinkCan);
-
-        }
-        finally {
-            native.clearPedTasks(ped);
-            native.freezeEntityPosition(player, false);
-            alt.log('Анимация покупки завершена');
-        }
+        //первая анимация, анимация покупки
+        native.taskPlayAnim(ped, animConfig.dict, animConfig.use, 8.0, -8.0, -1, 0, 0, false, false, false);
+        await wait(2200);
+        //спавн пропа после анимации покупки
+        const drinkCan = await this.spawnProp('ng_proc_sodacan_01a');
+        //запуск второй анимации
+        native.taskPlayAnim(ped, animConfig.dict, animConfig.drink, 8.0, -8.0, -1, 0, 0, false, false, false);
+        await wait(1800);
+        AnimationManager.deleteProp(drinkCan);
+        //после завершения всех анимаций и удаления пропа
+        native.clearPedTasks(ped);
+        native.freezeEntityPosition(player, false);
+        alt.log('Анимация покупки завершена');
     }
 }

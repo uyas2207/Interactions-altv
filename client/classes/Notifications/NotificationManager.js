@@ -48,6 +48,12 @@ export class NotificationManager {
     async init() {
         this.webView = new alt.WebView("http://resource/client/html/index.html");
 
+            await new Promise(resolve => {
+                this.webView.once('load', resolve);
+            });
+            this.isInitialized = true;
+            alt.log('Notification manager initialized');
+        /*
         let resolveLoad, resolveTimeout;
         let isResolved = false;
         //попытка инициализации, если не инициализируется за 2 секунды будет isLoaded false
@@ -70,11 +76,12 @@ export class NotificationManager {
         });
 
         this.webView.once("load", resolveLoad);
-        alt.setTimeout(resolveTimeout, 2000);
+        alt.setTimeout(resolveTimeout, 5000);
 
         const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
 
         this.isInitialized = isLoaded;
+        */
     }
 
     createProgressBar(id, title, progress = 0, text = "") {

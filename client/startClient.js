@@ -20,7 +20,7 @@ class Interaction {
         this.init();
     }
 
-    async init() {
+    init() {
         this.initializeNotificationManager();
 
         alt.onServer('client:sceneDemo', async (activeInteractions) => {

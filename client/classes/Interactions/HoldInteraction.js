@@ -14,7 +14,7 @@ export class HoldInteraction extends InteractionBase {
     }
 
     // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
-    async startInteraction(){                
+    startInteraction(){                
         this.bar = NotificationManager.getInstance().createProgressBar('lockpick', this.config.title, 0, this.config.text);
         this.updateInteraction(0);
     }

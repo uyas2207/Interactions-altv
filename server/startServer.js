@@ -15,7 +15,7 @@ class InteractionServer {
     init(){
         alt.on('resourceStart', this.spawnServerRequisite); //спавнит автомобиль
 
-        alt.on('playerConnect', async (player) => {
+        alt.on('playerConnect', (player) => {
             this.initializePlayer(player);
             this.demonstrationScene(player);
         });

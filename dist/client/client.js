@@ -33,16 +33,23 @@ class AnimationManager {
         return true;
       }
       natives__WEBPACK_IMPORTED_MODULE_1__.requestAnimDict(dict);
-      var counter = 0;
-      while (!natives__WEBPACK_IMPORTED_MODULE_1__.hasAnimDictLoaded(dict) && counter < 100) {
-        alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041F\u043E\u043F\u0442\u044B\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044E ".concat(dict, " \u043D\u043E\u043C\u0435\u0440: ").concat(counter + 1));
-        yield wait(200);
-        counter++;
-      }
-      if (!natives__WEBPACK_IMPORTED_MODULE_1__.hasAnimDictLoaded(dict)) {
-        alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044E:".concat(dict));
-        return false;
-      }
+      yield wait(800);
+      var status = natives__WEBPACK_IMPORTED_MODULE_1__.hasAnimDictLoaded(dict);
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log("native.hasAnimDictLoaded(".concat(dict, "): ").concat(status));
+      return status;
+
+      /*
+              let counter = 0;
+              while (!native.hasAnimDictLoaded(dict) && counter < 10) {
+                  alt.log(`Поптыка загрузить анимацию ${dict} номер: ${counter+1}`);
+                  await wait(200);
+                  counter++;
+              }
+              if (!native.hasAnimDictLoaded(dict)) {
+                  alt.log(`Не удалось загрузить анимацию:${dict}`);
+                  return false;
+              }
+              */
     })();
   }
 
@@ -56,11 +63,14 @@ class AnimationManager {
       // загружает проп
       if (!natives__WEBPACK_IMPORTED_MODULE_1__.hasModelLoaded(modelHash)) {
         natives__WEBPACK_IMPORTED_MODULE_1__.requestModel(modelHash);
-        var counter = 0;
-        while (!natives__WEBPACK_IMPORTED_MODULE_1__.hasModelLoaded(modelHash) && counter < 100) {
-          yield wait(20);
-          counter++;
+        yield wait(600);
+        /*
+        let counter = 0;
+        while (!native.hasModelLoaded(modelHash) && counter < 10) {
+            await wait(200);
+            counter++;
         }
+        */
         //если не получилось загрузить
         if (!natives__WEBPACK_IMPORTED_MODULE_1__.hasModelLoaded(modelHash)) {
           alt_client__WEBPACK_IMPORTED_MODULE_0__.log("spawnProp: \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u043E\u0434\u0435\u043B\u044C ".concat(modelName));
@@ -117,18 +127,19 @@ class AnimationManager {
 
       // пауза для корректного позиционирования
       yield wait(300);
-      try {
-        natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(ped, animConfig.dict, animConfig.use, 8.0, -8.0, -1, 0, 0, false, false, false);
-        yield wait(2200);
-        var drinkCan = yield _this2.spawnProp('ng_proc_sodacan_01a');
-        natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(ped, animConfig.dict, animConfig.drink, 8.0, -8.0, -1, 0, 0, false, false, false);
-        yield wait(1800);
-        AnimationManager.deleteProp(drinkCan);
-      } finally {
-        natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(ped);
-        natives__WEBPACK_IMPORTED_MODULE_1__.freezeEntityPosition(player, false);
-        alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Анимация покупки завершена');
-      }
+      //первая анимация, анимация покупки
+      natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(ped, animConfig.dict, animConfig.use, 8.0, -8.0, -1, 0, 0, false, false, false);
+      yield wait(2200);
+      //спавн пропа после анимации покупки
+      var drinkCan = yield _this2.spawnProp('ng_proc_sodacan_01a');
+      //запуск второй анимации
+      natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(ped, animConfig.dict, animConfig.drink, 8.0, -8.0, -1, 0, 0, false, false, false);
+      yield wait(1800);
+      AnimationManager.deleteProp(drinkCan);
+      //после завершения всех анимаций и удаления пропа
+      natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(ped);
+      natives__WEBPACK_IMPORTED_MODULE_1__.freezeEntityPosition(player, false);
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Анимация покупки завершена');
     })();
   }
 }
@@ -169,11 +180,8 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
 
   // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
   startInteraction() {
-    var _this = this;
-    return _asyncToGenerator(function* () {
-      _this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', _this.config.title, 0, _this.config.text);
-      _this.updateInteraction(0);
-    })();
+    this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', this.config.title, 0, this.config.text);
+    this.updateInteraction(0);
   }
   keyPressHandler(key) {
     //дебаунс от спама - проверяем можно ли обработать это нажатие
@@ -226,13 +234,13 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
   }
   // основной метод выполнения прогресса (взлома)
   runProgress() {
-    var _this2 = this;
+    var _this = this;
     return _asyncToGenerator(function* () {
       alt_client__WEBPACK_IMPORTED_MODULE_0__.log('runProgress начал выполнение');
       // цикл из 10 шагов прогресса (от 10% до 100%)
       var _loop = function* _loop(percentcounter) {
         // обнволение прогрессбара визуально  
-        _this2.updateInteraction(percentcounter);
+        _this.updateInteraction(percentcounter);
 
         // ожидание 1 секунды с возможностью прерывания и очисткой обработчиков timeout и interval
         yield new Promise((resolve, reject) => {
@@ -270,7 +278,7 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
           // Интервал который проверяет условия прерывания каждые 200ms
           var interval = alt_client__WEBPACK_IMPORTED_MODULE_0__.setInterval(() => {
             // Игрок отпустил клавишу -> Была запрошена остановка (shouldStop)
-            if (_this2.progressShouldStop) {
+            if (_this.progressShouldStop) {
               safeReject(new Error('Прерывание'));
               alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0428\u0430\u0433 ".concat(percentcounter, " \u043F\u0440\u0435\u0440\u0432\u0430\u043D"));
             }
@@ -620,31 +628,36 @@ class NotificationManager {
     var _this2 = this;
     return _asyncToGenerator(function* () {
       _this2.webView = new alt_client__WEBPACK_IMPORTED_MODULE_0__.WebView("http://resource/client/html/index.html");
-      var resolveLoad, resolveTimeout;
-      var isResolved = false;
+      yield new Promise(resolve => {
+        _this2.webView.once('load', resolve);
+      });
+      _this2.isInitialized = true;
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Notification manager initialized');
+      /*
+      let resolveLoad, resolveTimeout;
+      let isResolved = false;
       //попытка инициализации, если не инициализируется за 2 секунды будет isLoaded false
-      var loadPromise = new Promise(resolve => {
-        resolveLoad = () => {
-          if (!isResolved) {
-            //защита от повторого завершения промиса для Promise.race
-            isResolved = true;
-            resolve(true);
-          }
-        };
+      const loadPromise = new Promise((resolve) => {
+          resolveLoad = () => {
+              if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
+                  isResolved = true;
+                  resolve(true);
+              }
+          };
       });
-      var timeoutPromise = new Promise(resolve => {
-        resolveTimeout = () => {
-          if (!isResolved) {
-            //защита от повторого завершения промиса для Promise.race
-            isResolved = true;
-            resolve(false);
-          }
-        };
+        const timeoutPromise = new Promise((resolve) => {
+          resolveTimeout = () => {
+              if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
+                  isResolved = true;
+                  resolve(false);
+              }
+          };
       });
-      _this2.webView.once("load", resolveLoad);
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.setTimeout(resolveTimeout, 2000);
-      var isLoaded = yield Promise.race([loadPromise, timeoutPromise]);
-      _this2.isInitialized = isLoaded;
+        this.webView.once("load", resolveLoad);
+      alt.setTimeout(resolveTimeout, 5000);
+        const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
+        this.isInitialized = isLoaded;
+      */
     })();
   }
   createProgressBar(id, title) {
@@ -1220,41 +1233,39 @@ class Interaction {
   }
   init() {
     var _this = this;
-    return _asyncToGenerator(function* () {
-      _this.initializeNotificationManager();
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:sceneDemo', /*#__PURE__*/function () {
-        var _ref = _asyncToGenerator(function* (activeInteractions) {
-          _this.spawnPoints(activeInteractions); //создание колшейпов и маркеров
-          yield _this.preloadAnims(); //предзагрузка всех необходимых анимаций 
-        });
-        return function (_x) {
-          return _ref.apply(this, arguments);
-        };
-      }());
-      //запрос с серввера на удаление точки (после успешного выполнения интеракции на клиенте)
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:delPoint', interactionType => {
-        _this.delPoint(interactionType);
+    this.initializeNotificationManager();
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:sceneDemo', /*#__PURE__*/function () {
+      var _ref = _asyncToGenerator(function* (activeInteractions) {
+        _this.spawnPoints(activeInteractions); //создание колшейпов и маркеров
+        yield _this.preloadAnims(); //предзагрузка всех необходимых анимаций 
       });
-      //для создания точки по команде /create (с сервера)
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:createPoint', type => {
-        _this.createPoint(type);
-      });
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:checkDistanceSuccess', interactionType => {
-        _this.beginInteraction(interactionType);
-      });
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityEnterColshape', (colshape, entity) => _this.handleEntityEnterColshape(colshape, entity));
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityLeaveColshape', (colshape, entity) => _this.handleEntityLeaveColshape(colshape, entity));
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keydown', key => {
-        if (!_this.currentInteraction) return; //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
-        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
-        _this.keyPressHandler(key);
-      });
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keyup', key => {
-        if (!_this.currentInteraction) return; //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
-        if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
-        _this.keyUpHandler(key);
-      });
-    })();
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
+    //запрос с серввера на удаление точки (после успешного выполнения интеракции на клиенте)
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:delPoint', interactionType => {
+      this.delPoint(interactionType);
+    });
+    //для создания точки по команде /create (с сервера)
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:createPoint', type => {
+      this.createPoint(type);
+    });
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('client:checkDistanceSuccess', interactionType => {
+      this.beginInteraction(interactionType);
+    });
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityEnterColshape', (colshape, entity) => this.handleEntityEnterColshape(colshape, entity));
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.on('entityLeaveColshape', (colshape, entity) => this.handleEntityLeaveColshape(colshape, entity));
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keydown', key => {
+      if (!this.currentInteraction) return; //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
+      if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
+      this.keyPressHandler(key);
+    });
+    alt_client__WEBPACK_IMPORTED_MODULE_0__.on('keyup', key => {
+      if (!this.currentInteraction) return; //если на момент нажатия кнопки не существует активной интеракции (игрок не в колшейпе)
+      if (key !== _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_8__.intractionConfig.intractionKey) return; //игнорирует все кнопки кроме E
+      this.keyUpHandler(key);
+    });
   }
   keyPressHandler(key) {
     //alt.log(`keyPressHandler ${key}`);
