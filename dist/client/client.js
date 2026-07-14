@@ -163,25 +163,28 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @notifications/NotificationManager.js */ "./client/classes/Notifications/NotificationManager.js");
 /* harmony import */ var _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @config/IntractionConfig.js */ "./client/config/IntractionConfig.js");
 /* provided dependency */ var drawNotification = __webpack_require__(/*! ./client/utilities/utilities.js */ "./client/utilities/utilities.js")["drawNotification"];
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+function _classPrivateMethodInitSpec(e, a) { _checkPrivateRedeclaration(e, a), a.add(e); }
+function _checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function _assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
 
 
 
 
 
+var _HoldInteraction_brand = /*#__PURE__*/new WeakSet();
 class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.InteractionBase {
   constructor(pointData) {
     super(pointData);
-    this.currentProgressPromise = null;
-    this.progressShouldStop = false;
+    //метод для изменения текста уведомления
+    _classPrivateMethodInitSpec(this, _HoldInteraction_brand);
     this.config = _config_IntractionConfig_js__WEBPACK_IMPORTED_MODULE_4__.intractionConfig.holdInteraction;
+    this.currentActiveProgress = null;
   }
 
   // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
   startInteraction() {
     this.bar = _notifications_NotificationManager_js__WEBPACK_IMPORTED_MODULE_3__.NotificationManager.getInstance().createProgressBar('lockpick', this.config.title, 0, this.config.text);
-    this.updateInteraction(0);
+    _assertClassBrand(_HoldInteraction_brand, this, _updateInteraction).call(this, 0);
   }
   keyPressHandler(key) {
     //дебаунс от спама - проверяем можно ли обработать это нажатие
@@ -189,127 +192,55 @@ class HoldInteraction extends _InteractionBase_js__WEBPACK_IMPORTED_MODULE_2__.I
       return; // если дебаунс активен, отменяет последующие действия
     }
     // если при нажатии на E уже запущен процесс взлома произойдет return
-    if (this.currentProgressPromise) {
+    if (this.currentActiveProgress !== null) {
       return;
     }
-    this.progressShouldStop = false;
-    alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Запуск нового прогресса...');
+
     //анимация для взлома
     natives__WEBPACK_IMPORTED_MODULE_1__.taskPlayAnim(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base', 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
-
-    //создает и сохраняет Promise для отслеживания выполнения runProgress
-    this.currentProgressPromise = this.runProgress()
-    //обработка успешного завершения прогресса
-    .then(() => {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Прогресс завершен успешно');
-      drawNotification('Задача выполнена!');
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesHoldInteraction'); //передача на сервер информации об успешном завршении интракции, сервер запомнит что игрок выполнил конкретную интеракцию и удале ее маркер и колшейп
-    })
-    //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка this.progressShouldStop = true на зажатую E)
-    .catch(error => {
-      //преднамеренное прерывание
-      if (error.message === 'Прерывание') {
-        alt_client__WEBPACK_IMPORTED_MODULE_0__.log('startInteraction Прогресс прерван');
-        // сбрасывает прогрессбар в начальное состояние
-        this.updateInteraction(0); //метод для изменения текста уведомления
-        //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
-        natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
-        drawNotification('Процесс прерван!');
+    var counter = 0;
+    this.currentActiveProgress = alt_client__WEBPACK_IMPORTED_MODULE_0__.setInterval(() => {
+      if (counter < 10) {
+        _assertClassBrand(_HoldInteraction_brand, this, _updateInteraction).call(this, counter);
+        counter++;
+      } else {
+        drawNotification('Задача выполнена!');
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer('client:succesHoldInteraction');
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.clearInterval(this.currentActiveProgress);
+        this.currentActiveProgress = null;
       }
-    })
-    //выполняется в любом случае - при успехе или ошибке
-    .finally(() => {
-      // сбрасывает ссылку на Promise чтобы разрешить новый запуск
-      this.currentProgressPromise = null;
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Промис прогресса очищен в finally');
-    });
+    }, 1000);
   }
   // Обработчик отпускания клавиши E
   keyUpHandler() {
-    // игнорирует отпускание других клавиш
-    if (this.currentProgressPromise && !this.progressShouldStop) {
-      this.progressShouldStop = true;
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Клавиша E отпущена, установлен shouldStop');
+    if (this.currentActiveProgress !== null) {
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.clearInterval(this.currentActiveProgress);
+      this.currentActiveProgress = null;
+
+      // сбрасывает прогрессбар в начальное состояние
+      _assertClassBrand(_HoldInteraction_brand, this, _updateInteraction).call(this, 0); //метод для изменения текста уведомления
+      natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
+      drawNotification('Процесс прерван!');
     }
-  }
-  // основной метод выполнения прогресса (взлома)
-  runProgress() {
-    var _this = this;
-    return _asyncToGenerator(function* () {
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('runProgress начал выполнение');
-      // цикл из 10 шагов прогресса (от 10% до 100%)
-      var _loop = function* _loop(percentcounter) {
-        // обнволение прогрессбара визуально  
-        _this.updateInteraction(percentcounter);
-
-        // ожидание 1 секунды с возможностью прерывания и очисткой обработчиков timeout и interval
-        yield new Promise((resolve, reject) => {
-          // для проверки от множественного вызова resolve/reject
-          var isResolved = false;
-
-          // функции для безопасного завершения Promise с очисткой timeout и interval
-          var safeResolve = () => {
-            if (!isResolved) {
-              isResolved = true;
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.clearTimeout(timeout);
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.clearInterval(interval);
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041F\u0440\u043E\u0438\u0437\u043E\u0448\u0435\u043B safeResolve");
-              resolve();
-            }
-          };
-          var safeReject = error => {
-            if (!isResolved) {
-              isResolved = true;
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.clearTimeout(timeout);
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.clearInterval(interval);
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u041F\u0440\u043E\u0438\u0437\u043E\u0448\u0435\u043B safeReject");
-              reject(error);
-            }
-          };
-
-          // ВАРИАНТ 1: УСПЕШНОЕ ЗАВЕРШЕНИЕ
-          // Таймер который вызовет safeResolve() через 1 секунду
-          var timeout = alt_client__WEBPACK_IMPORTED_MODULE_0__.setTimeout(() => {
-            safeResolve();
-            alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0428\u0430\u0433 ".concat(percentcounter, " \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D \u0443\u0441\u043F\u0435\u0448\u043D\u043E"));
-          }, 1000);
-
-          // ВАРИАНТ 2: ПРЕРЫВАНИЕ
-          // Интервал который проверяет условия прерывания каждые 200ms
-          var interval = alt_client__WEBPACK_IMPORTED_MODULE_0__.setInterval(() => {
-            // Игрок отпустил клавишу -> Была запрошена остановка (shouldStop)
-            if (_this.progressShouldStop) {
-              safeReject(new Error('Прерывание'));
-              alt_client__WEBPACK_IMPORTED_MODULE_0__.log("\u0428\u0430\u0433 ".concat(percentcounter, " \u043F\u0440\u0435\u0440\u0432\u0430\u043D"));
-            }
-          }, 200); // проверяет каждые 200 миллисекунд
-        });
-      };
-      for (var percentcounter = 1; percentcounter <= 10; percentcounter++) {
-        yield* _loop(percentcounter);
-      }
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
-    })();
   }
   stopInteraction() {
     natives__WEBPACK_IMPORTED_MODULE_1__.clearPedTasks(alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.scriptID);
     //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
     //флаг shouldStop для остановки runProgress
-    if (!this.progressShouldStop) {
-      this.progressShouldStop = true;
+    if (this.currentActiveProgress !== null) {
+      alt_client__WEBPACK_IMPORTED_MODULE_0__.clearInterval(this.currentActiveProgress);
+      this.currentActiveProgress = null;
     }
     if (this.bar) {
       this.bar.hide();
     }
   }
-
-  //метод для изменения текста уведомления
-  updateInteraction(i) {
-    this.bar.update(i / 10, "\u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441: ".concat(i * 10, "%"));
-  }
   getInteractionText() {
     return this.config.text;
   }
+}
+function _updateInteraction(i) {
+  this.bar.update(i / 10, "\u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441: ".concat(i * 10, "%"));
 }
 
 /***/ }),
@@ -628,36 +559,15 @@ class NotificationManager {
     var _this2 = this;
     return _asyncToGenerator(function* () {
       _this2.webView = new alt_client__WEBPACK_IMPORTED_MODULE_0__.WebView("http://resource/client/html/index.html");
-      yield new Promise(resolve => {
-        _this2.webView.once('load', resolve);
-      });
-      _this2.isInitialized = true;
-      alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Notification manager initialized');
-      /*
-      let resolveLoad, resolveTimeout;
-      let isResolved = false;
-      //попытка инициализации, если не инициализируется за 2 секунды будет isLoaded false
-      const loadPromise = new Promise((resolve) => {
-          resolveLoad = () => {
-              if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
-                  isResolved = true;
-                  resolve(true);
-              }
-          };
-      });
-        const timeoutPromise = new Promise((resolve) => {
-          resolveTimeout = () => {
-              if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
-                  isResolved = true;
-                  resolve(false);
-              }
-          };
-      });
-        this.webView.once("load", resolveLoad);
-      alt.setTimeout(resolveTimeout, 5000);
-        const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
-        this.isInitialized = isLoaded;
-      */
+      try {
+        yield new Promise(resolve => {
+          _this2.webView.once('load', resolve);
+        });
+        _this2.isInitialized = true;
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Notification manager initialized');
+      } catch (error) {
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.log("Notification manager failed to initialize, reason ".concat(error));
+      }
     })();
   }
   createProgressBar(id, title) {

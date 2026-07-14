@@ -8,133 +8,66 @@ import { intractionConfig } from '@config/IntractionConfig.js';
 export class HoldInteraction extends InteractionBase {
     constructor(pointData) {
         super(pointData);
-        this.currentProgressPromise = null;
-        this.progressShouldStop = false;
+
         this.config = intractionConfig.holdInteraction;
+        this.currentActiveProgress = null;
     }
 
     // основной метод для настройки обработки прогресс-бара (долгого зажатия E)
-    startInteraction(){                
+    startInteraction(){
         this.bar = NotificationManager.getInstance().createProgressBar('lockpick', this.config.title, 0, this.config.text);
-        this.updateInteraction(0);
+        this.#updateInteraction(0);
     }
 
-        keyPressHandler(key) {
-            //дебаунс от спама - проверяем можно ли обработать это нажатие
-            if (!super.canProcessKeyPress(key)) {
-                return; // если дебаунс активен, отменяет последующие действия
-            }
-            // если при нажатии на E уже запущен процесс взлома произойдет return
-            if (this.currentProgressPromise){
-                return;
-            }
-            
-            this.progressShouldStop = false;
-            alt.log('Запуск нового прогресса...');
-            //анимация для взлома
-            native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base' , 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
-            
-            //создает и сохраняет Promise для отслеживания выполнения runProgress
-            this.currentProgressPromise = this.runProgress()
-                //обработка успешного завершения прогресса
-                .then(() => {
-                    alt.log('Прогресс завершен успешно');
-                    drawNotification('Задача выполнена!');
-                    alt.emitServer('client:succesHoldInteraction');    //передача на сервер информации об успешном завршении интракции, сервер запомнит что игрок выполнил конкретную интеракцию и удале ее маркер и колшейп
-                })
-                //способ прервать выполнение прогресса(происходит после того как игрок отпустит E и в runProgress сработает проверка this.progressShouldStop = true на зажатую E)
-                .catch((error) => {
-                    //преднамеренное прерывание
-                    if (error.message === 'Прерывание') {
-                        alt.log('startInteraction Прогресс прерван');
-                        // сбрасывает прогрессбар в начальное состояние
-                        this.updateInteraction(0);  //метод для изменения текста уведомления
-                        //отменяет текущую анимацю (при остановке прогресса и при успешном завершении)
-                        native.clearPedTasks(alt.Player.local.scriptID);
-                        drawNotification('Процесс прерван!');
-                    }
-                })
-                //выполняется в любом случае - при успехе или ошибке
-                .finally(() => {
-                    // сбрасывает ссылку на Promise чтобы разрешить новый запуск
-                    this.currentProgressPromise = null;
-                    alt.log('Промис прогресса очищен в finally');
-                });
-    
-        };
-
-        // Обработчик отпускания клавиши E
-        keyUpHandler() {
-            // игнорирует отпускание других клавиш
-            if(this.currentProgressPromise && !this.progressShouldStop){
-                this.progressShouldStop = true;
-                alt.log('Клавиша E отпущена, установлен shouldStop');
-            }
-        };
-    
-
-    // основной метод выполнения прогресса (взлома)
-    async runProgress() {
-        alt.log('runProgress начал выполнение');
-        // цикл из 10 шагов прогресса (от 10% до 100%)
-        for (let percentcounter = 1; percentcounter <= 10; percentcounter++) {
-            // обнволение прогрессбара визуально  
-            this.updateInteraction(percentcounter);
-
-            // ожидание 1 секунды с возможностью прерывания и очисткой обработчиков timeout и interval
-            await new Promise((resolve, reject) => {
-                // для проверки от множественного вызова resolve/reject
-                let isResolved = false;
-            
-                // функции для безопасного завершения Promise с очисткой timeout и interval
-                const safeResolve = () => {
-                    if (!isResolved) {
-                        isResolved = true;
-                        alt.clearTimeout(timeout);
-                        alt.clearInterval(interval);
-                        alt.log(`Произошел safeResolve`);
-                        resolve();
-                    }
-                };
-            
-                const safeReject = (error) => {
-                    if (!isResolved) {
-                        isResolved = true;
-                        alt.clearTimeout(timeout);
-                        alt.clearInterval(interval);
-                        alt.log(`Произошел safeReject`);
-                        reject(error);
-                    }
-               };
-            
-                // ВАРИАНТ 1: УСПЕШНОЕ ЗАВЕРШЕНИЕ
-                // Таймер который вызовет safeResolve() через 1 секунду
-                const timeout = alt.setTimeout(() => {
-                    safeResolve();
-                    alt.log(`Шаг ${percentcounter} завершен успешно`);
-                }, 1000);
-            
-                // ВАРИАНТ 2: ПРЕРЫВАНИЕ
-                // Интервал который проверяет условия прерывания каждые 200ms
-                const interval = alt.setInterval(() => {
-                    // Игрок отпустил клавишу -> Была запрошена остановка (shouldStop)
-                    if (this.progressShouldStop) {
-                        safeReject(new Error('Прерывание'));
-                        alt.log(`Шаг ${percentcounter} прерван`);
-                    }
-                }, 200); // проверяет каждые 200 миллисекунд
-            });
+    keyPressHandler(key) {
+        //дебаунс от спама - проверяем можно ли обработать это нажатие
+        if (!super.canProcessKeyPress(key)) {
+            return; // если дебаунс активен, отменяет последующие действия
         }
-        alt.log('runProgress завершил цикл - ВЗЛОМ УСПЕШЕН!');
-    }
+        // если при нажатии на E уже запущен процесс взлома произойдет return
+        if (this.currentActiveProgress !== null){
+            return;
+        }
+        
+        //анимация для взлома
+        native.taskPlayAnim(alt.Player.local.scriptID, 'amb@world_human_stand_mobile@male@text@base' , 'base', 8.0, -8.0, -1, 49, 0, false, false, false);
 
+        let counter = 0;
+        this.currentActiveProgress = alt.setInterval(() => {
+            if(counter < 10){
+                counter++;
+                this.#updateInteraction(counter);
+            }
+            else{
+                drawNotification('Задача выполнена!');
+                alt.emitServer('client:succesHoldInteraction');
 
+                alt.clearInterval(this.currentActiveProgress);
+                this.currentActiveProgress = null;
+            }
+        }, 1000);
+    };
+
+    // Обработчик отпускания клавиши E
+    keyUpHandler(key) {
+        if (this.currentActiveProgress !== null) {
+            alt.clearInterval(this.currentActiveProgress);
+            this.currentActiveProgress = null;
+
+            // сбрасывает прогрессбар в начальное состояние
+            this.#updateInteraction(0);  //метод для изменения текста уведомления
+            native.clearPedTasks(alt.Player.local.scriptID);
+            drawNotification('Процесс прерван!');
+        }
+    };
+    
     stopInteraction() {
         native.clearPedTasks(alt.Player.local.scriptID);
         //проверки нужны на случай успешного выполнения и последущего выхода из колшейпа (полсле выполнения все удаляется, после выхода происходит повторная попытка удаления)
         //флаг shouldStop для остановки runProgress
-        if(!this.progressShouldStop){
-            this.progressShouldStop = true;
+        if(this.currentActiveProgress !== null){
+            alt.clearInterval(this.currentActiveProgress);
+            this.currentActiveProgress = null;
         }
 
         if (this.bar){
@@ -142,8 +75,8 @@ export class HoldInteraction extends InteractionBase {
         }
     }
 
-//метод для изменения текста уведомления
-    updateInteraction(i) {
+    //метод для изменения текста уведомления
+    #updateInteraction(i) {
         this.bar.update(i/10, `Прогресс: ${i*10}%`);
     }
 

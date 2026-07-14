@@ -47,41 +47,16 @@ export class NotificationManager {
 
     async init() {
         this.webView = new alt.WebView("http://resource/client/html/index.html");
-
+        try{
             await new Promise(resolve => {
                 this.webView.once('load', resolve);
             });
             this.isInitialized = true;
             alt.log('Notification manager initialized');
-        /*
-        let resolveLoad, resolveTimeout;
-        let isResolved = false;
-        //попытка инициализации, если не инициализируется за 2 секунды будет isLoaded false
-        const loadPromise = new Promise((resolve) => {
-            resolveLoad = () => {
-                if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
-                    isResolved = true;
-                    resolve(true);
-                }
-            };
-        });
-
-        const timeoutPromise = new Promise((resolve) => {
-            resolveTimeout = () => {
-                if (!isResolved) {  //защита от повторого завершения промиса для Promise.race
-                    isResolved = true;
-                    resolve(false);
-                }
-            };
-        });
-
-        this.webView.once("load", resolveLoad);
-        alt.setTimeout(resolveTimeout, 5000);
-
-        const isLoaded = await Promise.race([loadPromise, timeoutPromise]);
-
-        this.isInitialized = isLoaded;
-        */
+        }
+        catch (error) {
+            alt.log(`Notification manager failed to initialize, reason ${error}`);
+        }
     }
 
     createProgressBar(id, title, progress = 0, text = "") {
